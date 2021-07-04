@@ -5,8 +5,6 @@ Simple online shopping application. Support Items, Promotions and Cart managemen
 
 ## Domain model
 
----
-
 ### Cart
 
 Describes the Cart by managing Items Purchased and the total price of items.
@@ -43,8 +41,6 @@ Promotions can change a Cart by:
 
 
 ## REST API
-
----
 
 ### POST /cart
 
@@ -138,7 +134,6 @@ Response Payload
 
 ## Considerations
 
----
 ### Project organization
 
 - ```/utils```: external utilities
