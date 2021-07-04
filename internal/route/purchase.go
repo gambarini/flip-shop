@@ -2,6 +2,8 @@ package route
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/gambarini/flip-shop/internal/model/cart"
 	"github.com/gambarini/flip-shop/internal/model/item"
 	"github.com/gambarini/flip-shop/internal/repo"
 	"github.com/gambarini/flip-shop/utils"
@@ -23,11 +25,11 @@ func purchase(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo
 
 		cartID := srv.Vars(request)["cartID"]
 
-		cart, err := cartRepo.FindCartByID(cartID)
+		currcart, err := cartRepo.FindCartByID(cartID)
 
 		if err != nil {
 			log.Printf("Error finding cart, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
+			response.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -57,13 +59,13 @@ func purchase(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo
 				return err
 			}
 
-			err = cart.PurchaseItem(item, rPayload.Qty)
+			err = currcart.PurchaseItem(item, rPayload.Qty)
 
 			if err != nil {
 				return err
 			}
 
-			if err := cartRepo.Store(tx, cart); err != nil {
+			if err := cartRepo.Store(tx, currcart); err != nil {
 				return err
 			}
 
@@ -74,13 +76,22 @@ func purchase(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo
 			return nil
 		})
 
-		if err != nil {
-			log.Printf("Error storing cart, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
+		switch  {
+		case err == repo.ErrItemNotFound:
+			srv.ResponseErrorEntityUnproc(response, err)
+			return
+		case err == item.ErrItemNotAvailableReservation:
+			srv.ResponseErrorEntityUnproc(response, err)
+			return
+		case err == cart.ErrItemQtyAddedInvalid:
+			srv.ResponseErrorEntityUnproc(response, err)
+			return
+		case err != nil:
+			srv.ResponseErrorServerErr(response, fmt.Errorf("error storing Cart, %s", err))
 			return
 		}
 
-		cartJSON, err := json.Marshal(cart)
+		cartJSON, err := json.Marshal(currcart)
 
 		if err != nil {
 			log.Printf("Error serializing response, %s", err)

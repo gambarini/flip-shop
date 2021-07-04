@@ -15,9 +15,9 @@ type (
 	}
 )
 
-func (fIP ItemQtyPriceDiscountPercentagePromotion) Apply(getPurchasedHandler GetPurchasedItemHandler, addPromoHandler AddPromoItemToCartHandler, AddDiscountHandler AddDiscountToCartHandler) (err error) {
+func (iQD ItemQtyPriceDiscountPercentagePromotion) Apply(getPurchasedHandler GetPurchasedItemHandler, addPromoHandler AddPromoItemToCartHandler, AddDiscountHandler AddDiscountToCartHandler) (err error) {
 
-	itemPurchased, ok := getPurchasedHandler(fIP.PurchasedItemSku)
+	itemPurchased, ok := getPurchasedHandler(iQD.PurchasedItemSku)
 
 	if !ok {
 		return nil
@@ -25,10 +25,10 @@ func (fIP ItemQtyPriceDiscountPercentagePromotion) Apply(getPurchasedHandler Get
 
 	var discount int64
 
-	if itemPurchased.Qty > fIP.PurchasedQty {
+	if itemPurchased.Qty > iQD.PurchasedQty {
 		total := (itemPurchased.Price * int64(itemPurchased.Qty)) / 100
 
-		discount = int64((float32(total) * fIP.PercentageDiscount) * 100)
+		discount = int64((float32(total) * iQD.PercentageDiscount) * 100)
 
 	}
 
@@ -36,7 +36,7 @@ func (fIP ItemQtyPriceDiscountPercentagePromotion) Apply(getPurchasedHandler Get
 		return
 	}
 
-	err = AddDiscountHandler(fIP.PurchasedItemSku, discount)
+	err = AddDiscountHandler(iQD.PurchasedItemSku, discount)
 
 	if err != nil {
 		return err

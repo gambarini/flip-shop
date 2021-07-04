@@ -22,7 +22,7 @@ func TestFreeItemPromotion_Apply(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		//{},
+		//TODO: add tests for free items,
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

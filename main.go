@@ -69,28 +69,29 @@ func init() () {
 		log.Fatalf("Error initializing, %s", err)
 	}
 
-	availablePromotions = append(availablePromotions, promotion.FreeItemPromotion{
-		PurchasedItemSku: ItemMacBookProSku,
-		FreeItemSku: RaspberyPiSku,
-		FreeItemPrice: 3000,
-	})
-
-	availablePromotions = append(availablePromotions, promotion.ItemQtyPriceDiscountPromotion{
-		PurchasedItemSku: ItemGoogleHomeSku,
-		PurchasedQty:     3,
-	})
-
-	availablePromotions = append(availablePromotions, promotion.ItemQtyPriceDiscountPercentagePromotion{
-		PurchasedItemSku:   ItemAlexaSpeakerSku,
-		PurchasedQty:       3,
-		PercentageDiscount: 0.1,
-	})
-
 }
 
 func main() {
 
 	initializeFunc := func(srv *utils.AppServer) (err error) {
+
+		// Here we setup the expected promotions
+		availablePromotions = append(availablePromotions, promotion.FreeItemPromotion{
+			PurchasedItemSku: ItemMacBookProSku,
+			FreeItemSku: RaspberyPiSku,
+			FreeItemPrice: 3000,
+		})
+
+		availablePromotions = append(availablePromotions, promotion.ItemQtyPriceFreePromotion{
+			PurchasedItemSku: ItemGoogleHomeSku,
+			PurchasedQty:     3,
+		})
+
+		availablePromotions = append(availablePromotions, promotion.ItemQtyPriceDiscountPercentagePromotion{
+			PurchasedItemSku:   ItemAlexaSpeakerSku,
+			PurchasedQty:       3,
+			PercentageDiscount: 0.1,
+		})
 
 		itemRepo := repo.NewItemRepository(memDb)
 		cartRepo := repo.NewCartRepository(memDb)

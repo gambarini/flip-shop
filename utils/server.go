@@ -123,7 +123,7 @@ func (srv *AppServer) Start() {
 
 func (srv *AppServer) prepareShutdown() {
 
-	log.Printf("Cleaning up resources")
+	log.Printf("Cleaning up resources...")
 
 	if srv.cleanupFunc != nil {
 		err := srv.cleanupFunc(srv)
@@ -149,4 +149,23 @@ func (srv *AppServer) prepareShutdown() {
 func (srv *AppServer) router() *mux.Router {
 
 	return srv.Handler.(*mux.Router)
+}
+
+func (srv *AppServer) ResponseErrorEntityUnproc(response http.ResponseWriter, err error) {
+	log.Printf("%s", err)
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(http.StatusUnprocessableEntity)
+	_,_ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
+}
+
+func (srv *AppServer) ResponseErrorServerErr(response http.ResponseWriter, err error) {
+	log.Printf("%s", err)
+	response.WriteHeader(http.StatusInternalServerError)
+}
+
+func (srv *AppServer) ResponseErrorNotfound(response http.ResponseWriter, err error) {
+	log.Printf("%s", err)
+	response.Header().Set("Content-Type", "application/json")
+	response.WriteHeader(http.StatusNotFound)
+	_,_ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
 }

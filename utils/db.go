@@ -25,6 +25,7 @@ type (
 		WithTx(txHandler TxHandler) error
 	}
 
+
 	// Tx
 	// Defines the database read and write inside a transactional boundary
 	Tx interface {
@@ -38,7 +39,7 @@ type (
 	}
 
 	// TxHandler
-	// Handles read and writes in the database inside a transactional boundary
+	// Handles database operations in a transactional boundary
 	TxHandler func(tx Tx) error
 )
 

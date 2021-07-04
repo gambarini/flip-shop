@@ -2,14 +2,10 @@ package item
 
 import (
 	"errors"
-	"fmt"
 )
 
 var (
-	ErrItemNotAvailableReservation = func(sku Sku, Qty int) error {
-		return errors.New(fmt.Sprintf("there is not %d Item(s) %s available for reservation", Qty, sku))
-	}
-
+	ErrItemNotAvailableReservation = errors.New("item not available for reservation")
 	ErrInvalidReleaseQuantity = errors.New("cannot release quantity")
 	ErrInvalidRemoveQuantity  = errors.New("cannot remove quantity")
 )
@@ -35,7 +31,7 @@ type (
 func (i *Item) ReserveItem(toReserveQty int) error {
 
 	if toReserveQty > (i.QtyAvailable - i.QtyReserved) {
-		return ErrItemNotAvailableReservation(i.Sku, toReserveQty)
+		return ErrItemNotAvailableReservation
 	}
 
 	i.QtyReserved += toReserveQty
@@ -47,7 +43,7 @@ func (i *Item) ReserveItem(toReserveQty int) error {
 // Release reserved quantity of the item
 func (i *Item) ReleaseItem(toReleaseQty int) error {
 
-	if toReleaseQty > i.QtyAvailable {
+	if toReleaseQty > i.QtyReserved {
 		return ErrInvalidReleaseQuantity
 	}
 
