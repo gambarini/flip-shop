@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-
+path_local=$(pwd);
+echo Running Tests...
 go test ./...
-
+echo Building binary on ${path_local}...
 go build
+echo binary on ${path_local}/flip-shop
