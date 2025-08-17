@@ -1,0 +1,183 @@
+openapi: 3.0.3
+info:
+  title: Flip-shop API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8001
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime_seconds:
+                    type: integer
+                    format: int64
+                    example: 123
+                  version:
+                    type: string
+                    example: dev
+  /cart:
+    post:
+      summary: Create a new cart
+      responses:
+        '200':
+          description: Cart created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+  /cart/{cartID}/purchase:
+    put:
+      summary: Add a purchase to the cart
+      parameters:
+        - in: path
+          name: cartID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseRequest'
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+    delete:
+      summary: Remove a purchase from the cart
+      parameters:
+        - in: path
+          name: cartID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseRequest'
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /cart/{cartID}/status/submitted:
+    put:
+      summary: Submit a cart and apply promotions
+      parameters:
+        - in: path
+          name: cartID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Submitted cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+components:
+  schemas:
+    PurchaseRequest:
+      type: object
+      required: [sku, qty]
+      additionalProperties: false
+      properties:
+        sku:
+          type: string
+          example: 120P90
+        qty:
+          type: integer
+          minimum: 1
+          example: 3
+    Cart:
+      type: object
+      properties:
+        CartID:
+          type: string
+          format: uuid
+        Purchases:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Purchase'
+        CartStatus:
+          type: string
+          enum: [Available, Submitted]
+        Total:
+          type: integer
+          format: int64
+          description: total in cents
+      required: [CartID, Purchases, CartStatus, Total]
+    Purchase:
+      type: object
+      properties:
+        Sku:
+          type: string
+        Name:
+          type: string
+        Price:
+          type: integer
+          format: int64
+          description: price in cents
+        Qty:
+          type: integer
+        Discount:
+          type: integer
+          format: int64
+          description: discount in cents applied to this SKU aggregate
+      required: [Sku, Name, Price, Qty, Discount]
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+  responses:
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            default:
+              value: {"error":"cart not found"}
+    UnprocessableEntity:
+      description: Unprocessable Entity
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            default:
+              value: {"error":"invalid qty"}

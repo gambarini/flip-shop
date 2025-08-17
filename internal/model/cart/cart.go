@@ -2,23 +2,28 @@ package cart
 
 import (
 	"errors"
+
 	"github.com/gambarini/flip-shop/internal/model/item"
-	//"github.com/gambarini/flip-shop/internal/model/promotion"
+	"github.com/gambarini/flip-shop/utils"
 	"github.com/gofrs/uuid"
 )
 
 var (
-	ErrICartNotAvailable   = errors.New("cart not Available")
+	// ErrCartNotAvailable is returned when an operation is attempted on a non-available cart.
+	ErrCartNotAvailable = errors.New("cart not available")
+	// ErrItemQtyAddedInvalid indicates that a purchase update would result in a negative quantity.
 	ErrItemQtyAddedInvalid = errors.New("item quantity invalid")
-	ErrItemNotInCart       = errors.New("item is not in the cart")
+	// ErrItemNotInCart is returned when applying a discount to a non-existent cart item.
+	ErrItemNotInCart = errors.New("item is not in the cart")
 )
 
 type (
-	// Status
-	// Supported Cart Statuses
-	// For simplicity only 2 states are supported
+	// Status represents the state of a cart.
+	// For simplicity only 2 states are supported.
 	Status string
 
+	// Cart represents a shopping cart with purchases and totals.
+	// Total is expressed in integer cents (int64).
 	Cart struct {
 		CartID     string
 		Purchases  map[item.Sku]Purchase
@@ -26,6 +31,8 @@ type (
 		Total      int64
 	}
 
+	// Purchase captures an item purchase in the cart, including discount applied.
+	// Price and Discount are expressed in integer cents (int64).
 	Purchase struct {
 		Sku      item.Sku
 		Name     string
@@ -33,19 +40,17 @@ type (
 		Qty      int
 		Discount int64
 	}
-
 )
 
 const (
-	// CartStatusAvailable
-	// Cart is ready to receive purchases
+	// CartStatusAvailable indicates the cart can receive purchases.
 	CartStatusAvailable = Status("Available")
 
-	// CartStatusSubmitted
-	// Cart is submitted and does not accept purchases
+	// CartStatusSubmitted indicates the cart has been submitted and no longer accepts purchases.
 	CartStatusSubmitted = Status("Submitted")
 )
 
+// NewAvailableCart creates a new cart in Available status with an auto-generated ID.
 func NewAvailableCart() (cart Cart) {
 
 	id, _ := uuid.NewV4()
@@ -57,10 +62,12 @@ func NewAvailableCart() (cart Cart) {
 	}
 }
 
+// PurchaseItem updates the cart with a purchase for the given item and quantity.
+// Quantity may be negative to remove items; zero removes the item entry.
 func (c *Cart) PurchaseItem(i item.Item, qty int) (err error) {
 
 	if c.CartStatus != CartStatusAvailable {
-		return ErrICartNotAvailable
+		return ErrCartNotAvailable
 	}
 
 	p, ok := c.Purchases[i.Sku]
@@ -89,9 +96,11 @@ func (c *Cart) PurchaseItem(i item.Item, qty int) (err error) {
 		return nil
 	}
 
+	// no-op: all branches handled above
 	return nil
 }
 
+// DiscountPurchase adds a discount to an existing purchase by SKU.
 func (c *Cart) DiscountPurchase(sku item.Sku, discount int64) (err error) {
 
 	p, ok := c.Purchases[sku]
@@ -107,15 +116,18 @@ func (c *Cart) DiscountPurchase(sku item.Sku, discount int64) (err error) {
 	return nil
 }
 
+// SubmitCart finalizes the cart total and moves it to Submitted status.
 func (c *Cart) SubmitCart() (err error) {
 
 	if c.CartStatus != CartStatusAvailable {
 
-		return ErrICartNotAvailable
+		return ErrCartNotAvailable
 	}
 
 	for _, p := range c.Purchases {
-		c.Total += (p.Price * int64(p.Qty)) - p.Discount
+		line := utils.SaturatingMulInt64Int(p.Price, p.Qty)
+		line = utils.SaturatingSubInt64(line, p.Discount)
+		c.Total = utils.SaturatingAddInt64(c.Total, line)
 	}
 
 	c.CartStatus = CartStatusSubmitted

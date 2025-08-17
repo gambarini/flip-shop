@@ -3,6 +3,21 @@
 Simple online shopping application. Support Items, Promotions and Cart management.
 
 
+## Quick start
+- Build: go build && ./flip-shop
+- Run without building: go run ./...
+- Default server port: 8001 (configurable via env, see Configuration)
+
+## Configuration
+- FLIPSHOP_PORT or PORT: server port (default 8001)
+- FLIPSHOP_VERSION: version string exposed by /health (default "dev")
+- FLIPSHOP_INVENTORY_JSON: optional JSON to seed items at startup. Example:
+  - [{"sku":"120P90","name":"Google Home","price":4999,"qty":10}]
+
+## Health endpoint
+- GET /health → 200 OK
+  - Response: {"status":"ok","uptime_seconds":123,"version":"dev"}
+
 ## Domain model
 
 ### Cart
@@ -31,20 +46,43 @@ until removed from a Cart.
 
 Describes the Promotions affecting a Cart, depending on the Items present in the Cart.
 
+#### Available promotions (examples)
+- Buy MacBook Pro (43N23P), get a Raspberry Pi B (234234) for free per MacBook purchased.
+  - Implemented via FreeItemPromotion; cart will include Raspberry Pi items with a discount equal to their price.
+- Buy 3 Google Home (120P90), get 1 free (every third unit is free).
+  - Implemented via ItemQtyPriceFreePromotion; discount equals one Google Home price per 3 units.
+- Buy more than 3 Alexa Speakers (A304SD), get 10% off on those speakers.
+  - Implemented via ItemQtyPriceDiscountPercentagePromotion; applies when qty > 3 (not >=).
+
 #### Cart update from applied promotions
 
 Promotions can change a Cart by:
 
-- Adding and Item quantity to a Cart.
+- Adding an Item quantity to a Cart (e.g., free Raspberry Pi).
 - Adding a discount to an Item purchased.
 
 
 
 ## REST API
 
+OpenAPI specification: docs/openapi.yaml
+
+All responses are JSON with Content-Type: application/json.
+
+### Error responses
+- 404 Not Found: resource does not exist (e.g., cart not found).
+  - {"error":"<message>"}
+- 422 Unprocessable Entity: validation or domain error (e.g., invalid qty, item unavailable, item not found).
+  - {"error":"<message>"}
+- 500 Internal Server Error: unexpected server error.
+  - {"error":"<message>"}
+
 ### POST /cart
 
-Create and available Cart
+Create an available cart.
+
+Example request (curl):
+- curl -s -X POST http://localhost:8001/cart
 
 Response Payload
 ```json
@@ -60,6 +98,12 @@ Response Payload
 
 - PUT: Purchase an Item and add it to the Cart
 - DELETE: Remove a Purchased Item from the Cart
+
+Example request (PUT):
+- curl -s -X PUT http://localhost:8001/cart/{cartID}/purchase -H 'Content-Type: application/json' -d '{"sku":"120P90","qty":3}'
+
+Example request (DELETE):
+- curl -s -X DELETE http://localhost:8001/cart/{cartID}/purchase -H 'Content-Type: application/json' -d '{"sku":"120P90","qty":1}'
 
 Request Payload
 ```json
@@ -91,7 +135,10 @@ Response Payload
 
 ### PUT cart/{cartID}/status/submitted
 
-Submit the Cart by applying promotions and calculating the total
+Submit the Cart by applying promotions and calculating the total.
+
+Example request (curl):
+- curl -s -X PUT http://localhost:8001/cart/{cartID}/status/submitted
 
 Response Payload
 ```json
@@ -147,7 +194,9 @@ Response Payload
 - It implements an ACID isolation level of "Serializable" by mutex locking the map stored in memory
 - It ** does not implement transaction rollback ** for the sake of demo simplicity (no time for this now)
 
-### Unit testes
+### Unit tests
 
-- Most of the domain models have unit tests.
-- Repositories and HTTP handlers are missing unit tests
+- Domain models, repositories, and HTTP handlers have tests.
+- Run all tests: go test ./...
+- With race: go test -race ./...
+- Coverage HTML: go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out

@@ -2,6 +2,7 @@ package promotion
 
 import (
 	"github.com/gambarini/flip-shop/internal/model/item"
+	"github.com/gambarini/flip-shop/utils"
 )
 
 type (
@@ -30,7 +31,7 @@ func (fIP FreeItemPromotion) Apply(getPurchasedHandler GetPurchasedItemHandler, 
 		return err
 	}
 
-	discount := fIP.FreeItemPrice*int64(itemPurchased.Qty)
+	discount := utils.SaturatingMulInt64Int(fIP.FreeItemPrice, itemPurchased.Qty)
 
 	err = AddDiscountHandler(fIP.FreeItemSku, discount)
 

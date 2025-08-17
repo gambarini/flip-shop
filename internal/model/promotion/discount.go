@@ -2,6 +2,7 @@ package promotion
 
 import (
 	"github.com/gambarini/flip-shop/internal/model/item"
+	"github.com/gambarini/flip-shop/utils"
 )
 
 type (
@@ -26,9 +27,17 @@ func (iQD ItemQtyPriceDiscountPercentagePromotion) Apply(getPurchasedHandler Get
 	var discount int64
 
 	if itemPurchased.Qty > iQD.PurchasedQty {
-		total := (itemPurchased.Price * int64(itemPurchased.Qty)) / 100
-
-		discount = int64((float32(total) * iQD.PercentageDiscount) * 100)
+		total := utils.SaturatingMulInt64Int(itemPurchased.Price, itemPurchased.Qty)
+		// convert to whole currency then back to cents to apply percentage deterministically
+		total = total / 100
+		per := iQD.PercentageDiscount
+		if per < 0 {
+			per = 0
+		}
+		if per > 1 {
+			per = 1
+		}
+		discount = int64((float32(total) * per) * 100)
 
 	}
 

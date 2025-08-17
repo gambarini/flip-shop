@@ -2,7 +2,9 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/gofrs/uuid"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
@@ -24,8 +26,11 @@ type (
 	// cleanup are provided so the life cycle of other objects can be added to it.
 	AppServer struct {
 		*http.Server
-		initializeFunc Initialize        // Custom initialization function
-		cleanupFunc    CleanUp           // Custom cleanup function
+		initializeFunc Initialize // Custom initialization function
+		cleanupFunc    CleanUp    // Custom cleanup function
+		startTime      time.Time  // server start time for uptime reporting
+		Version        string     // application version for health endpoint
+		logger         Logger     // structured logger implementation
 	}
 )
 
@@ -36,12 +41,19 @@ func NewServer(port int) *AppServer {
 	router := mux.NewRouter()
 
 	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: router,
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           router,
+		ReadTimeout:       5 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	server := &AppServer{
-		Server:      httpServer,
+		Server: httpServer,
+		// default version when not provided by main/env
+		Version: "dev",
+		logger:  NewStdLogger(),
 	}
 
 	return server
@@ -60,16 +72,27 @@ func NewServerWithInitialization(port int, initializeFunc Initialize, cleanupFun
 }
 
 func (srv *AppServer) Vars(r *http.Request) map[string]string {
-
 	return mux.Vars(r)
 }
 
+// Logger returns the configured structured logger
+func (srv *AppServer) Logger() Logger {
+	if srv.logger == nil {
+		srv.logger = NewStdLogger()
+	}
+	return srv.logger
+}
+
+// SetLogger allows replacing the default logger implementation
+func (srv *AppServer) SetLogger(l Logger) {
+	srv.logger = l
+}
 
 func (srv *AppServer) AddRoute(path, method string, handler http.HandlerFunc) error {
 
 	srv.router().HandleFunc(path, srv.requestInterceptor(handler)).Methods(method)
 
-	log.Printf("Added route %s %s", method, path)
+	srv.Logger().Info("route_added", Fields{"method": method, "path": path})
 
 	return nil
 }
@@ -77,72 +100,106 @@ func (srv *AppServer) AddRoute(path, method string, handler http.HandlerFunc) er
 func (srv *AppServer) requestInterceptor(next http.HandlerFunc) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
-
-		log.Printf("Request %s %s", r.Method, r.RequestURI)
+		start := time.Now()
+		// Request ID propagation: use incoming X-Request-ID if present, else generate
+		reqID := r.Header.Get("X-Request-ID")
+		if reqID == "" {
+			if id, err := uuid.NewV4(); err == nil {
+				reqID = id.String()
+			} else {
+				reqID = "unknown"
+			}
+		}
+		w.Header().Set("X-Request-ID", reqID)
+		srv.Logger().Info("request", Fields{"request_id": reqID, "method": r.Method, "path": r.RequestURI})
 
 		next.ServeHTTP(w, r)
 
+		dur := time.Since(start)
+		srv.Logger().Info("completed", Fields{"request_id": reqID, "method": r.Method, "path": r.RequestURI, "duration_ms": dur.Milliseconds()})
 	}
 }
 
 func (srv *AppServer) Start() {
+	// Backward-compatible start that listens for process signals only
+	srv.startWithCancel(nil)
+}
 
+// StartContext starts the server and will stop when either the provided context is
+// cancelled or termination signals are received. If ctx is nil, only signals are observed.
+func (srv *AppServer) StartContext(ctx context.Context) {
+	srv.startWithCancel(ctx)
+}
+
+func (srv *AppServer) startWithCancel(ctx context.Context) {
 	sigChan := make(chan os.Signal, 1)
-
 	signal.Notify(sigChan, syscall.SIGINT)  // Handling Ctrl + C
 	signal.Notify(sigChan, syscall.SIGTERM) // Handling Docker stop
 
-	log.Printf("Initializing resources...")
-
+	srv.Logger().Info("init_start", nil)
 	if srv.initializeFunc != nil {
-
-		err := srv.initializeFunc(srv)
-
-		if err != nil {
-			log.Printf("Failed to initialize resources, %s", err)
+		if err := srv.initializeFunc(srv); err != nil {
+			srv.Logger().Error("init_failed", Fields{"error": err.Error()})
 		}
 	}
 
-	log.Printf("Starting app server...")
+	srv.Logger().Info("server_starting", nil)
+	// mark start time for uptime
+	srv.startTime = time.Now()
 
+	done := make(chan struct{})
 	go func() {
-		log.Printf("Listening on port %s. Ctrl+C to stop", srv.Addr)
-
+		srv.Logger().Info("listening", Fields{"addr": srv.Addr})
 		err := srv.ListenAndServe()
-
 		if err != http.ErrServerClosed {
+			// still fatal-exit on unexpected error
 			log.Fatalf("Failed to start server, %s", err)
 		}
+		close(done)
 	}()
 
-	<-sigChan
+	// Wait for either context cancellation, signal, or server close
+	select {
+	case <-done:
+		// server closed
+	case <-sigChan:
+		// signal received
+	case <-func() <-chan struct{} {
+		if ctx == nil {
+			// never triggers
+			ch := make(chan struct{})
+			return ch
+		}
+		return ctx.Done()
+	}():
+	}
 
 	srv.prepareShutdown()
-
 }
 
 func (srv *AppServer) prepareShutdown() {
 
-	log.Printf("Cleaning up resources...")
+	srv.Logger().Info("cleanup_start", nil)
 
 	if srv.cleanupFunc != nil {
 		err := srv.cleanupFunc(srv)
 
 		if err != nil {
-			log.Printf("Error cleaning up resources ,%s", err)
+			srv.Logger().Error("cleanup_error", Fields{"error": err.Error()})
 		}
 	}
 
-	log.Printf("Shutting down app server...")
+	srv.Logger().Info("server_shutting_down", nil)
 
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	err := srv.Shutdown(ctx)
 
 	if err != nil {
 		log.Fatalf("Error shutting down server, %s", err)
 	} else {
-		log.Printf("App server gracefully stopped")
+		srv.Logger().Info("server_stopped", nil)
 	}
 }
 
@@ -151,21 +208,40 @@ func (srv *AppServer) router() *mux.Router {
 	return srv.Handler.(*mux.Router)
 }
 
+// StartTime returns the time the server was started.
+func (srv *AppServer) StartTime() time.Time {
+	return srv.startTime
+}
+
 func (srv *AppServer) ResponseErrorEntityUnproc(response http.ResponseWriter, err error) {
-	log.Printf("%s", err)
+	srv.Logger().Error("error_unprocessable_entity", Fields{"error": err.Error()})
 	response.Header().Set("Content-Type", "application/json")
 	response.WriteHeader(http.StatusUnprocessableEntity)
-	_,_ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
+	_, _ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
 }
 
 func (srv *AppServer) ResponseErrorServerErr(response http.ResponseWriter, err error) {
-	log.Printf("%s", err)
+	srv.Logger().Error("error_internal_server", Fields{"error": err.Error()})
+	response.Header().Set("Content-Type", "application/json")
 	response.WriteHeader(http.StatusInternalServerError)
+	_, _ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
 }
 
 func (srv *AppServer) ResponseErrorNotfound(response http.ResponseWriter, err error) {
-	log.Printf("%s", err)
+	srv.Logger().Error("error_not_found", Fields{"error": err.Error()})
 	response.Header().Set("Content-Type", "application/json")
 	response.WriteHeader(http.StatusNotFound)
-	_,_ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
+	_, _ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
+}
+
+// RespondJSON writes a JSON response with the given status code. It ensures headers are set before body
+// and centralizes JSON encoding and error handling.
+func (srv *AppServer) RespondJSON(w http.ResponseWriter, status int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(v); err != nil {
+		// we cannot change status code here as headers are already written; log the error
+		srv.Logger().Error("json_encode_error", Fields{"error": err.Error()})
+	}
 }

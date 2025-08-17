@@ -1,15 +1,14 @@
 package route
 
 import (
-	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/gambarini/flip-shop/internal/model/cart"
 	"github.com/gambarini/flip-shop/internal/model/item"
 	"github.com/gambarini/flip-shop/internal/model/promotion"
 	"github.com/gambarini/flip-shop/internal/repo"
 	"github.com/gambarini/flip-shop/utils"
-	"log"
-	"net/http"
 )
 
 func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.IItemRepository, promotions []promotion.Promotion) http.HandlerFunc {
@@ -21,22 +20,23 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 		submitCart, err := cartRepo.FindCartByID(cartID)
 
 		if err != nil {
-			log.Printf("Error finding Cart, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
+			if err == repo.ErrCartNotFound {
+				srv.ResponseErrorNotfound(response, err)
+				return
+			}
+			srv.ResponseErrorServerErr(response, fmt.Errorf("error finding cart: %w", err))
 			return
 		}
 
 		err = cartRepo.WithTx(func(tx utils.Tx) error {
 
 			for _, p := range promotions {
-				err = p.Apply(
+				if err := p.Apply(
 					GetPurchasedItemForPromotion(submitCart),
 					AddPurchaseToCartForPromotion(tx, itemRepo, submitCart),
-					AddDiscountToPurchaseForPromotion(submitCart))
-			}
-
-			if err != nil {
-				return err
+					AddDiscountToPurchaseForPromotion(submitCart)); err != nil {
+					return err
+				}
 			}
 
 			for _, pu := range submitCart.Purchases {
@@ -70,9 +70,7 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 			return nil
 		})
 
-
-
-		switch  {
+		switch {
 		case err == repo.ErrItemNotFound:
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
@@ -92,28 +90,11 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
 		case err != nil:
-			srv.ResponseErrorServerErr(response, fmt.Errorf("error storing Cart, %s", err))
+			srv.ResponseErrorServerErr(response, fmt.Errorf("error storing Cart: %w", err))
 			return
 		}
 
-		cartJSON, err := json.Marshal(submitCart)
-
-		if err != nil {
-			log.Printf("Error serializing response, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		response.Header().Set("Content-Type", "application/json")
-		response.WriteHeader(http.StatusOK)
-
-		_, err = response.Write(cartJSON)
-
-		if err != nil {
-			log.Printf("Error serializing response, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		srv.RespondJSON(response, http.StatusOK, submitCart)
 
 	}
 }
@@ -129,6 +110,9 @@ func AddDiscountToPurchaseForPromotion(cart cart.Cart) func(sku item.Sku, discou
 	}
 }
 
+// AddPurchaseToCartForPromotion reserves the promotional items before adding them to the cart to ensure
+// inventory invariants are maintained. If reservation fails (insufficient availability), the promotion
+// application aborts and no cart state is mutated, as the call happens within the transaction boundary.
 func AddPurchaseToCartForPromotion(tx utils.Tx, itemRepo repo.IItemRepository, cart cart.Cart) func(sku item.Sku, qty int) error {
 	return func(sku item.Sku, qty int) error {
 

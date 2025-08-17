@@ -2,6 +2,7 @@ package promotion
 
 import (
 	"github.com/gambarini/flip-shop/internal/model/item"
+	"github.com/gambarini/flip-shop/utils"
 )
 
 type (
@@ -24,12 +25,9 @@ func (iQF ItemQtyPriceFreePromotion) Apply(getPurchasedHandler GetPurchasedItemH
 
 	var discount int64
 
-	for i := 1; i <= itemPurchased.Qty; i++ {
-
-		if i%iQF.PurchasedQty == 0 {
-
-			discount += itemPurchased.Price
-		}
+	if iQF.PurchasedQty > 0 && itemPurchased.Qty >= iQF.PurchasedQty {
+		freeCount := itemPurchased.Qty / iQF.PurchasedQty
+		discount = utils.SaturatingMulInt64Int(itemPurchased.Price, freeCount)
 	}
 
 	if discount == 0 {
@@ -44,6 +42,3 @@ func (iQF ItemQtyPriceFreePromotion) Apply(getPurchasedHandler GetPurchasedItemH
 
 	return nil
 }
-
-
-

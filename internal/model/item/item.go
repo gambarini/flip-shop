@@ -5,18 +5,21 @@ import (
 )
 
 var (
+	// ErrItemNotAvailableReservation indicates the requested reservation exceeds availability.
 	ErrItemNotAvailableReservation = errors.New("item not available for reservation")
+	// ErrInvalidReleaseQuantity indicates releasing more than reserved.
 	ErrInvalidReleaseQuantity = errors.New("cannot release quantity")
-	ErrInvalidRemoveQuantity  = errors.New("cannot remove quantity")
+	// ErrInvalidRemoveQuantity indicates removing more than reserved.
+	ErrInvalidRemoveQuantity = errors.New("cannot remove quantity")
 )
 
 type (
+	// Sku identifies a product uniquely.
 	Sku string
 
-	// Item
-	// Represents an item available for purchase
+	// Item represents an item available for purchase.
 	// This model controls the quantities and reservations available
-	// in the same object for the sake of simplicity
+	// in the same object for the sake of simplicity.
 	Item struct {
 		Sku          Sku
 		Name         string
@@ -26,8 +29,7 @@ type (
 	}
 )
 
-// ReserveItem
-// Reserve a quantity of the item if available
+// ReserveItem reserves a quantity of the item if available.
 func (i *Item) ReserveItem(toReserveQty int) error {
 
 	if toReserveQty > (i.QtyAvailable - i.QtyReserved) {
@@ -39,8 +41,7 @@ func (i *Item) ReserveItem(toReserveQty int) error {
 	return nil
 }
 
-// ReleaseItem
-// Release reserved quantity of the item
+// ReleaseItem releases reserved quantity of the item.
 func (i *Item) ReleaseItem(toReleaseQty int) error {
 
 	if toReleaseQty > i.QtyReserved {
@@ -52,8 +53,7 @@ func (i *Item) ReleaseItem(toReleaseQty int) error {
 	return nil
 }
 
-// RemoveItem
-// Remove available quantity for the item
+// RemoveItem removes available quantity for the item and decreases reserved accordingly.
 func (i *Item) RemoveItem(toRemoveQty int) error {
 
 	if toRemoveQty > i.QtyReserved {

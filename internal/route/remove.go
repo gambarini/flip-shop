@@ -3,13 +3,12 @@ package route
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/gambarini/flip-shop/internal/model/cart"
 	"github.com/gambarini/flip-shop/internal/model/item"
 	"github.com/gambarini/flip-shop/internal/repo"
 	"github.com/gambarini/flip-shop/utils"
-	"io/ioutil"
-	"log"
-	"net/http"
 )
 
 type (
@@ -28,20 +27,27 @@ func remove(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 		currCart, err := cartRepo.FindCartByID(cartID)
 
 		if err != nil {
-			log.Printf("Error finding Cart, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
+			if err == repo.ErrCartNotFound {
+				srv.ResponseErrorNotfound(response, err)
+				return
+			}
+			srv.ResponseErrorServerErr(response, fmt.Errorf("error finding cart: %w", err))
 			return
 		}
 
-		bodyJSON, err := ioutil.ReadAll(request.Body)
-
 		var rPayload RemoveItemPayload
-
-		err = json.Unmarshal(bodyJSON, &rPayload)
-
-		if err != nil {
-			log.Printf("Error reading payload, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
+		dec := json.NewDecoder(request.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&rPayload); err != nil {
+			srv.ResponseErrorEntityUnproc(response, fmt.Errorf("invalid JSON payload: %w", err))
+			return
+		}
+		if rPayload.Sku == "" {
+			srv.ResponseErrorEntityUnproc(response, fmt.Errorf("sku must be provided"))
+			return
+		}
+		if rPayload.Qty <= 0 {
+			srv.ResponseErrorEntityUnproc(response, cart.ErrItemQtyAddedInvalid)
 			return
 		}
 
@@ -76,7 +82,7 @@ func remove(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 			return nil
 		})
 
-		switch  {
+		switch {
 		case err == repo.ErrItemNotFound:
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
@@ -87,28 +93,11 @@ func remove(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
 		case err != nil:
-			srv.ResponseErrorServerErr(response, fmt.Errorf("error storing Cart, %s", err))
+			srv.ResponseErrorServerErr(response, fmt.Errorf("error storing Cart: %w", err))
 			return
 		}
 
-		cartJSON, err := json.Marshal(currCart)
-
-		if err != nil {
-			log.Printf("Error serializing response, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		response.Header().Set("Content-Type", "application/json")
-		response.WriteHeader(http.StatusOK)
-
-		_, err = response.Write(cartJSON)
-
-		if err != nil {
-			log.Printf("Error serializing response, %s", err)
-			response.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		srv.RespondJSON(response, http.StatusOK, currCart)
 
 	}
 }
