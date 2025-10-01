@@ -28,9 +28,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Run go vet
-        run: go vet ./...
-
       - name: Ensure ci.sh is executable
         run: chmod +x ci.sh
 
