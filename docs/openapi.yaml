@@ -5,6 +5,93 @@ info:
 servers:
   - url: http://localhost:8001
 paths:
+  /items:
+    post:
+      summary: Create a new item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemCreateRequest'
+      responses:
+        '201':
+          description: Item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /items/{sku}:
+    get:
+      summary: Get item by SKU
+      parameters:
+        - in: path
+          name: sku
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Restock item (add quantity)
+      parameters:
+        - in: path
+          name: sku
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemQtyUpdateRequest'
+      responses:
+        '200':
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /items/{sku}/price:
+    put:
+      summary: Adjust price of an existing item
+      parameters:
+        - in: path
+          name: sku
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemPriceUpdateRequest'
+      responses:
+        '200':
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
   /health:
     get:
       summary: Health check
@@ -109,6 +196,61 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
 components:
   schemas:
+    ItemCreateRequest:
+      type: object
+      required: [sku, name, price, qty]
+      additionalProperties: false
+      properties:
+        sku:
+          type: string
+          example: 120P90
+        name:
+          type: string
+          example: Google Home
+        price:
+          type: integer
+          format: int64
+          description: price in cents
+          example: 4999
+        qty:
+          type: integer
+          minimum: 0
+          example: 10
+    ItemQtyUpdateRequest:
+      type: object
+      required: [qty]
+      additionalProperties: false
+      properties:
+        qty:
+          type: integer
+          minimum: 0
+          example: 3
+    ItemPriceUpdateRequest:
+      type: object
+      required: [price]
+      additionalProperties: false
+      properties:
+        price:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 4999
+    Item:
+      type: object
+      properties:
+        Sku:
+          type: string
+        Name:
+          type: string
+        Price:
+          type: integer
+          format: int64
+          description: price in cents
+        QtyAvailable:
+          type: integer
+        QtyReserved:
+          type: integer
+      required: [Sku, Name, Price, QtyAvailable, QtyReserved]
     PurchaseRequest:
       type: object
       required: [sku, qty]

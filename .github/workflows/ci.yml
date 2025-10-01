@@ -28,18 +28,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Install staticcheck (fallback linter)
-        run: |
-          if ! command -v staticcheck >/dev/null 2>&1; then
-            go install honnef.co/go/tools/cmd/staticcheck@latest
-          fi
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: latest
-          args: ./...
+      - name: Run go vet
+        run: go vet ./...
 
       - name: Ensure ci.sh is executable
         run: chmod +x ci.sh

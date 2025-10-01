@@ -18,8 +18,8 @@ func TestCart_PurchaseItem(t *testing.T) {
 
 	newCartWithItem := func(s Status) Cart {
 		return Cart{
-			CartID:     "CartID",
-			Purchases:  map[item.Sku]Purchase{item.Sku("TEST"): {
+			CartID: "CartID",
+			Purchases: map[item.Sku]Purchase{item.Sku("TEST"): {
 				Sku:      item.Sku("TEST"),
 				Name:     "Test",
 				Price:    1000,
@@ -80,8 +80,3 @@ func TestCart_PurchaseItem(t *testing.T) {
 		})
 	}
 }
-
-
-
-
-

@@ -25,7 +25,6 @@ type (
 		WithTx(txHandler TxHandler) error
 	}
 
-
 	// Tx
 	// Defines the database read and write inside a transactional boundary
 	Tx interface {

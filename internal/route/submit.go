@@ -1,6 +1,7 @@
 package route
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -20,7 +21,7 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 		submitCart, err := cartRepo.FindCartByID(cartID)
 
 		if err != nil {
-			if err == repo.ErrCartNotFound {
+			if errors.Is(err, repo.ErrCartNotFound) {
 				srv.ResponseErrorNotfound(response, err)
 				return
 			}
@@ -71,22 +72,22 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 		})
 
 		switch {
-		case err == repo.ErrItemNotFound:
+		case errors.Is(err, repo.ErrItemNotFound):
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
-		case err == item.ErrInvalidReleaseQuantity:
+		case errors.Is(err, item.ErrInvalidReleaseQuantity):
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
-		case err == item.ErrItemNotAvailableReservation:
+		case errors.Is(err, item.ErrItemNotAvailableReservation):
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
-		case err == item.ErrInvalidRemoveQuantity:
+		case errors.Is(err, item.ErrInvalidRemoveQuantity):
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
-		case err == cart.ErrItemQtyAddedInvalid:
+		case errors.Is(err, cart.ErrItemQtyAddedInvalid):
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
-		case err == cart.ErrItemNotInCart:
+		case errors.Is(err, cart.ErrItemNotInCart):
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
 		case err != nil:

@@ -28,7 +28,7 @@ func (iQD ItemQtyPriceDiscountPercentagePromotion) Apply(getPurchasedHandler Get
 
 	if itemPurchased.Qty > iQD.PurchasedQty {
 		total := utils.SaturatingMulInt64Int(itemPurchased.Price, itemPurchased.Qty)
-		// convert to whole currency then back to cents to apply percentage deterministically
+		// convert to the whole currency then back to cents to apply percentage deterministically
 		total = total / 100
 		per := iQD.PercentageDiscount
 		if per < 0 {

@@ -107,8 +107,7 @@ func TestItem_ReserveItem(t *testing.T) {
 	}
 
 	type want struct {
-		qtyReserved  int
-
+		qtyReserved int
 	}
 	type args struct {
 		toReserveQty int
@@ -123,7 +122,7 @@ func TestItem_ReserveItem(t *testing.T) {
 		{"Reserve 10", args{10}, want{10}, false},
 		{"Reserve 11 with error", args{11}, want{0}, true},
 	}
-		for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			i := newItem()
 			if err := i.ReserveItem(tt.args.toReserveQty); (err != nil) != tt.wantErr {

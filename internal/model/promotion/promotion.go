@@ -31,7 +31,4 @@ type (
 	// AddDiscountToCartHandler
 	// Delegates the ability to add discounts to a cart
 	AddDiscountToCartHandler func(discountItemSku item.Sku, discount int64) error
-
 )
-
-
