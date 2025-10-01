@@ -5,7 +5,7 @@ PROJECT_NAME := flip-shop
 BIN          := $(PROJECT_NAME)
 GO           ?= go
 
-.PHONY: all help build run test race cover cover-html vet lint fmt tidy ci clean
+.PHONY: all help build run test race cover cover-html vet fmt tidy ci clean
 
 all: build
 
@@ -18,7 +18,6 @@ help:
 	@echo "  cover        - Run tests with coverage (text)"
 	@echo "  cover-html   - Generate coverage.out and open HTML report"
 	@echo "  vet          - Run go vet"
-	@echo "  lint         - Run golangci-lint or staticcheck if available"
 	@echo "  fmt          - go fmt all packages"
 	@echo "  tidy         - go mod tidy"
 	@echo "  ci           - Run repository CI script (./ci.sh)"
@@ -44,15 +43,6 @@ cover-html:
 
 vet:
 	$(GO) vet ./...
-
-lint:
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		echo "Running golangci-lint..."; golangci-lint run ./...; \
-	elif command -v staticcheck >/dev/null 2>&1; then \
-		echo "Running staticcheck..."; staticcheck ./...; \
-	else \
-		echo "No linter installed (golangci-lint/staticcheck). Skipping."; \
-	fi
 
 fmt:
 	$(GO) fmt ./...
