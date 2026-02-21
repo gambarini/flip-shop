@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "flipshop": {
+      "command": "/absolute/path/to/flipshop-mcp",
+      "env": {
+        "FLIP_SHOP_BASE_URL": "http://localhost:8001",
+        "FLIP_SHOP_TIMEOUT_MS": "8000"
+      }
+    }
+  }
+}

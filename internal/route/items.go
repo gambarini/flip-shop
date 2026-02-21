@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 
 	"github.com/gambarini/flip-shop/internal/model/item"
 	"github.com/gambarini/flip-shop/internal/repo"
@@ -28,6 +29,20 @@ type (
 		Price int64 `json:"price"`
 	}
 )
+
+// listItems returns all items in inventory (unordered by default); for stable outputs we sort by SKU.
+func listItems(srv *utils.AppServer, itemRepo repo.IItemRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		items, err := itemRepo.ListItems()
+		if err != nil {
+			srv.ResponseErrorServerErr(w, fmt.Errorf("error listing items: %w", err))
+			return
+		}
+		// Sort by SKU for deterministic responses in tests/clients
+		sort.Slice(items, func(i, j int) bool { return string(items[i].Sku) < string(items[j].Sku) })
+		srv.RespondJSON(w, http.StatusOK, items)
+	}
+}
 
 // getItem returns an item by sku
 func getItem(srv *utils.AppServer, itemRepo repo.IItemRepository) http.HandlerFunc {

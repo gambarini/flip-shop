@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gofrs/uuid"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gofrs/uuid"
+	"github.com/gorilla/mux"
 )
 
 type (
@@ -95,6 +96,14 @@ func (srv *AppServer) AddRoute(path, method string, handler http.HandlerFunc) er
 	srv.Logger().Info("route_added", Fields{"method": method, "path": path})
 
 	return nil
+}
+
+// AddStaticRoute registers a static file server for the given path prefix and directory
+func (srv *AppServer) AddStaticRoute(pathPrefix, dir string) {
+	fileServer := http.FileServer(http.Dir(dir))
+	srv.router().PathPrefix(pathPrefix).Handler(http.StripPrefix(pathPrefix, fileServer))
+
+	srv.Logger().Info("static_route_added", Fields{"path_prefix": pathPrefix, "directory": dir})
 }
 
 func (srv *AppServer) requestInterceptor(next http.HandlerFunc) http.HandlerFunc {

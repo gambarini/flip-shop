@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flip-Shop - Shopping Cart</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛒 Flip-Shop</h1>
+            <p class="subtitle">Browse items and build your cart with automatic promotions!</p>
+        </header>
+
+        <div class="alert" id="alert" style="display: none;"></div>
+
+        <div class="main-content">
+            <!-- Available Items Section -->
+            <section class="items-section">
+                <h2>Available Items</h2>
+                <div class="items-grid" id="itemsGrid">
+                    <div class="loading">Loading items...</div>
+                </div>
+            </section>
+
+            <!-- Shopping Cart Section -->
+            <section class="cart-section">
+                <h2>Shopping Cart</h2>
+                <div class="cart-status" id="cartStatus">
+                    <span class="status-badge available">Available</span>
+                    <span class="cart-id">Cart ID: <span id="cartId">-</span></span>
+                </div>
+
+                <div class="cart-items" id="cartItems">
+                    <p class="empty-cart">Your cart is empty. Add items to get started!</p>
+                </div>
+
+                <div class="cart-summary" id="cartSummary" style="display: none;">
+                    <div class="summary-row subtotal">
+                        <span>Subtotal:</span>
+                        <span id="subtotal">$0.00</span>
+                    </div>
+                    <div class="summary-row discount" id="discountRow" style="display: none;">
+                        <span>Discounts:</span>
+                        <span id="totalDiscount" class="discount-amount">-$0.00</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total:</span>
+                        <span id="total">$0.00</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-submit" id="submitBtn" disabled>
+                    Submit Cart & Apply Promotions
+                </button>
+
+                <div class="promotions-info">
+                    <h3>Active Promotions</h3>
+                    <ul>
+                        <li>🎁 Buy MacBook Pro, get Raspberry Pi B free!</li>
+                        <li>🏠 Buy 3 Google Homes, get 1 free!</li>
+                        <li>🔊 Buy 3+ Alexa Speakers, get 10% off!</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -102,3 +102,18 @@ func (mDb *MemoryKVDatabase) Read(name utils.StoreName, key string) (v interface
 	}
 	return v, nil
 }
+
+// List returns a snapshot slice with all values for a given store name.
+func (mDb *MemoryKVDatabase) List(name utils.StoreName) ([]interface{}, error) {
+	mDb.lock.RLock()
+	defer mDb.lock.RUnlock()
+	store, ok := mDb.tx.data[name]
+	if !ok {
+		return []interface{}{}, nil
+	}
+	res := make([]interface{}, 0, len(store))
+	for _, v := range store {
+		res = append(res, v)
+	}
+	return res, nil
+}

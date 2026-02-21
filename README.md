@@ -69,6 +69,10 @@ OpenAPI specification: docs/openapi.yaml
 
 All responses are JSON with Content-Type: application/json.
 
+### Read endpoints
+- GET /items → list all items
+- GET /cart/{cartID} → fetch a cart by ID
+
 ### Error responses
 - 404 Not Found: resource does not exist (e.g., cart not found).
   - {"error":"<message>"}

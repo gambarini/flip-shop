@@ -16,6 +16,10 @@ type (
 		// Return the value for a key
 		// return ErrValueNotFound if key/value does not exist
 		Read(name StoreName, key string) (interface{}, error)
+		// List
+		// Returns all values stored under the given store name
+		// Implementations should not expose internal mutable maps; return a copy/slice
+		List(name StoreName) ([]interface{}, error)
 	}
 
 	// KVRepository

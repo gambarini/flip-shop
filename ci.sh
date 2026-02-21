@@ -36,4 +36,7 @@ fi
 echo "Building binary on ${path_local}..."
 go build
 
-echo "binary on ${path_local}/flip-shop"
+echo "Building flipshop-mcp binary..."
+go build -o flipshop-mcp ./cmd/flipshop-mcp
+
+echo "binary on ${path_local}/flip-shop and ${path_local}/flipshop-mcp"

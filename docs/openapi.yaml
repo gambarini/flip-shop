@@ -6,6 +6,17 @@ servers:
   - url: http://localhost:8001
 paths:
   /items:
+    get:
+      summary: List items
+      responses:
+        '200':
+          description: List of items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Item'
     post:
       summary: Create a new item
       requestBody:

@@ -20,6 +20,8 @@ type (
 		FindItemBySku(tx utils.Tx, sku item.Sku) (item item.Item, err error)
 		// Store persists the given item within the provided transaction.
 		Store(tx utils.Tx, item item.Item) (err error)
+		// ListItems returns all items currently stored.
+		ListItems() ([]item.Item, error)
 	}
 
 	// ItemRepository is a concrete implementation of IItemRepository backed by a KVDatabase.
@@ -62,4 +64,19 @@ func (repo ItemRepository) Store(tx utils.Tx, i item.Item) (err error) {
 
 	return nil
 
+}
+
+// ListItems returns all items from the underlying store.
+func (repo ItemRepository) ListItems() ([]item.Item, error) {
+	vals, err := repo.KVDatabase.List(ItemStoreName)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]item.Item, 0, len(vals))
+	for _, v := range vals {
+		if it, ok := v.(item.Item); ok {
+			items = append(items, it)
+		}
+	}
+	return items, nil
 }
