@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -129,18 +128,14 @@ func (srv *AppServer) requestInterceptor(next http.HandlerFunc) http.HandlerFunc
 	}
 }
 
-func (srv *AppServer) Start() {
-	// Backward-compatible start that listens for process signals only
-	srv.startWithCancel(nil)
+// Start starts the server and blocks until ctx is cancelled, a termination signal is
+// received, or an unexpected server error occurs. Pass context.Background() for
+// signal-only shutdown.
+func (srv *AppServer) Start(ctx context.Context) error {
+	return srv.startWithCancel(ctx)
 }
 
-// StartContext starts the server and will stop when either the provided context is
-// cancelled or termination signals are received. If ctx is nil, only signals are observed.
-func (srv *AppServer) StartContext(ctx context.Context) {
-	srv.startWithCancel(ctx)
-}
-
-func (srv *AppServer) startWithCancel(ctx context.Context) {
+func (srv *AppServer) startWithCancel(ctx context.Context) error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT)  // Handling Ctrl + C
 	signal.Notify(sigChan, syscall.SIGTERM) // Handling Docker stop
@@ -148,52 +143,42 @@ func (srv *AppServer) startWithCancel(ctx context.Context) {
 	srv.Logger().Info("init_start", nil)
 	if srv.initializeFunc != nil {
 		if err := srv.initializeFunc(srv); err != nil {
-			srv.Logger().Error("init_failed", Fields{"error": err.Error()})
+			return fmt.Errorf("initialization failed: %w", err)
 		}
 	}
 
 	srv.Logger().Info("server_starting", nil)
-	// mark start time for uptime
 	srv.startTime = time.Now()
 
-	done := make(chan struct{})
+	errChan := make(chan error, 1)
 	go func() {
 		srv.Logger().Info("listening", Fields{"addr": srv.Addr})
+		fmt.Fprintf(os.Stdout, "\n  App running at http://localhost%s\n\n", srv.Addr)
 		err := srv.ListenAndServe()
-		if err != http.ErrServerClosed {
-			// still fatal-exit on unexpected error
-			log.Fatalf("Failed to start server, %s", err)
+		if err == http.ErrServerClosed {
+			errChan <- nil
+		} else {
+			errChan <- err
 		}
-		close(done)
 	}()
 
-	// Wait for either context cancellation, signal, or server close
 	select {
-	case <-done:
-		// server closed
-	case <-sigChan:
-		// signal received
-	case <-func() <-chan struct{} {
-		if ctx == nil {
-			// never triggers
-			ch := make(chan struct{})
-			return ch
+	case err := <-errChan:
+		if err != nil {
+			return fmt.Errorf("server error: %w", err)
 		}
-		return ctx.Done()
-	}():
+	case <-sigChan:
+	case <-ctx.Done():
 	}
 
-	srv.prepareShutdown()
+	return srv.prepareShutdown()
 }
 
-func (srv *AppServer) prepareShutdown() {
-
+func (srv *AppServer) prepareShutdown() error {
 	srv.Logger().Info("cleanup_start", nil)
 
 	if srv.cleanupFunc != nil {
-		err := srv.cleanupFunc(srv)
-
-		if err != nil {
+		if err := srv.cleanupFunc(srv); err != nil {
 			srv.Logger().Error("cleanup_error", Fields{"error": err.Error()})
 		}
 	}
@@ -203,13 +188,11 @@ func (srv *AppServer) prepareShutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := srv.Shutdown(ctx)
-
-	if err != nil {
-		log.Fatalf("Error shutting down server, %s", err)
-	} else {
-		srv.Logger().Info("server_stopped", nil)
+	if err := srv.Shutdown(ctx); err != nil {
+		return fmt.Errorf("shutdown error: %w", err)
 	}
+	srv.Logger().Info("server_stopped", nil)
+	return nil
 }
 
 func (srv *AppServer) router() *mux.Router {

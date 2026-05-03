@@ -37,8 +37,13 @@ func TestItemQtyPriceDiscountPercentagePromotion_Apply(t *testing.T) {
 			false},
 		{"4 item no disc",
 			promoConfig{"TEST", 4, 0.5},
-			args{4},
+			args{3},
 			want{discount: 0},
+			false},
+		{"4 item exact threshold disc",
+			promoConfig{"TEST", 4, 0.5},
+			args{4},
+			want{discount: 2000},
 			false},
 	}
 	for _, tt := range tests {
@@ -51,20 +56,20 @@ func TestItemQtyPriceDiscountPercentagePromotion_Apply(t *testing.T) {
 
 			var expcDiscount int64
 
-			if err := fIP.Apply(func(sku item.Sku) (PurchasedItem, bool) {
-				return PurchasedItem{
-					Sku:      "TEST",
-					Name:     "TEST",
-					Price:    1000,
-					Qty:      tt.args.qty,
-					Discount: 0,
-				}, true
-			},
-				func(i item.Sku, qty int) error { return nil },
-				func(discountItemSku item.Sku, discount int64) error {
-					expcDiscount = discount
-					return nil
-				}); (err != nil) != tt.wantErr {
+			ctx := PromotionContext{
+				GetPurchased: func(sku item.Sku) (PurchasedItem, bool) {
+					return PurchasedItem{
+						Sku:      "TEST",
+						Name:     "TEST",
+						Price:    1000,
+						Qty:      tt.args.qty,
+						Discount: 0,
+					}, true
+				},
+				AddPromo:    func(i item.Sku, qty int) (int64, error) { return 0, nil },
+				AddDiscount: func(discountItemSku item.Sku, discount int64) (int64, error) { expcDiscount = discount; return discount, nil },
+			}
+			if err := fIP.Apply(ctx); (err != nil) != tt.wantErr {
 				t.Errorf("Apply() error = %v, wantErr %v", err, tt.wantErr)
 			}
 

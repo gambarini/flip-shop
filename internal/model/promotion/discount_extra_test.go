@@ -10,13 +10,15 @@ func TestItemQtyPriceDiscountPercentagePromotion_Rounding_Truncates(t *testing.T
 	p := ItemQtyPriceDiscountPercentagePromotion{PurchasedItemSku: "SKU", PurchasedQty: 1, PercentageDiscount: 0.10}
 
 	var got int64
-	get := func(sku item.Sku) (PurchasedItem, bool) {
-		return PurchasedItem{Sku: "SKU", Price: 10950, Qty: 3}, true // total = 32850
+	ctx := PromotionContext{
+		GetPurchased: func(sku item.Sku) (PurchasedItem, bool) {
+			return PurchasedItem{Sku: "SKU", Price: 10950, Qty: 3}, true // total = 32850
+		},
+		AddPromo:    func(sku item.Sku, qty int) (int64, error) { return 0, nil },
+		AddDiscount: func(sku item.Sku, discount int64) (int64, error) { got = discount; return discount, nil },
 	}
-	add := func(sku item.Sku, qty int) error { return nil }
-	addDisc := func(sku item.Sku, discount int64) error { got = discount; return nil }
 
-	if err := p.Apply(get, add, addDisc); err != nil {
+	if err := p.Apply(ctx); err != nil {
 		t.Fatalf("Apply() error: %v", err)
 	}
 	// With current algorithm: total/100 = 328, 328 * 0.1 * 100 = 3280 (truncated), not 3285
@@ -31,27 +33,25 @@ func TestPromotions_Interactions_SameSKU_AdditiveAndOrderIndependent(t *testing.
 	p1 := ItemQtyPriceFreePromotion{PurchasedItemSku: buySku, PurchasedQty: 2}
 	p2 := ItemQtyPriceDiscountPercentagePromotion{PurchasedItemSku: buySku, PurchasedQty: 1, PercentageDiscount: 0.5}
 
-	applyBoth := func() int64 {
-		var discount int64
-		get := func(sku item.Sku) (PurchasedItem, bool) { return PurchasedItem{Sku: buySku, Price: 1000, Qty: 4}, true }
-		add := func(sku item.Sku, qty int) error { return nil }
-		addDisc := func(sku item.Sku, d int64) error { discount += d; return nil }
-		_ = p1.Apply(get, add, addDisc)
-		_ = p2.Apply(get, add, addDisc)
-		return discount
-	}
-	applyBothReverse := func() int64 {
-		var discount int64
-		get := func(sku item.Sku) (PurchasedItem, bool) { return PurchasedItem{Sku: buySku, Price: 1000, Qty: 4}, true }
-		add := func(sku item.Sku, qty int) error { return nil }
-		addDisc := func(sku item.Sku, d int64) error { discount += d; return nil }
-		_ = p2.Apply(get, add, addDisc)
-		_ = p1.Apply(get, add, addDisc)
-		return discount
+	makeCtx := func(discountAcc *int64) PromotionContext {
+		return PromotionContext{
+			GetPurchased: func(sku item.Sku) (PurchasedItem, bool) {
+				return PurchasedItem{Sku: buySku, Price: 1000, Qty: 4}, true
+			},
+			AddPromo:    func(sku item.Sku, qty int) (int64, error) { return 0, nil },
+			AddDiscount: func(sku item.Sku, d int64) (int64, error) { *discountAcc += d; return d, nil },
+		}
 	}
 
-	d1 := applyBoth()
-	d2 := applyBothReverse()
+	var d1 int64
+	ctx1 := makeCtx(&d1)
+	_ = p1.Apply(ctx1)
+	_ = p2.Apply(ctx1)
+
+	var d2 int64
+	ctx2 := makeCtx(&d2)
+	_ = p2.Apply(ctx2)
+	_ = p1.Apply(ctx2)
 
 	if d1 != 4000 || d2 != 4000 {
 		t.Fatalf("expected total discount 4000 in both orders, got d1=%d d2=%d", d1, d2)

@@ -37,7 +37,6 @@ func Test_Integration_Create_Add_Submit(t *testing.T) {
 		promotion.FreeItemPromotion{
 			PurchasedItemSku: "43N23P",
 			FreeItemSku:      "234234",
-			FreeItemPrice:    3000,
 		},
 		promotion.ItemQtyPriceFreePromotion{
 			PurchasedItemSku: "120P90",

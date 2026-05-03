@@ -1,6 +1,8 @@
 package promotion
 
 import (
+	"errors"
+
 	"github.com/gambarini/flip-shop/internal/model/item"
 	"github.com/gambarini/flip-shop/utils"
 )
@@ -10,14 +12,22 @@ type (
 	// Describes a promotion where purchasing a qty of
 	// an item gives some of these items for free
 	ItemQtyPriceFreePromotion struct {
+		Name             string
 		PurchasedItemSku item.Sku
 		PurchasedQty     int
 	}
 )
 
-func (iQF ItemQtyPriceFreePromotion) Apply(getPurchasedHandler GetPurchasedItemHandler, addPromoHandler AddPromoItemToCartHandler, AddDiscountHandler AddDiscountToCartHandler) (err error) {
+func (iQF ItemQtyPriceFreePromotion) Validate() error {
+	if iQF.PurchasedQty <= 0 {
+		return errors.New("ItemQtyPriceFreePromotion: PurchasedQty must be > 0")
+	}
+	return nil
+}
 
-	itemPurchased, ok := getPurchasedHandler(iQF.PurchasedItemSku)
+func (iQF ItemQtyPriceFreePromotion) Apply(ctx PromotionContext) (err error) {
+
+	itemPurchased, ok := ctx.GetPurchased(iQF.PurchasedItemSku)
 
 	if !ok {
 		return nil
@@ -34,11 +44,12 @@ func (iQF ItemQtyPriceFreePromotion) Apply(getPurchasedHandler GetPurchasedItemH
 		return
 	}
 
-	err = AddDiscountHandler(iQF.PurchasedItemSku, discount)
-
+	applied, err := ctx.AddDiscount(iQF.PurchasedItemSku, discount)
 	if err != nil {
 		return err
 	}
-
+	if ctx.AddApplied != nil && applied > 0 {
+		ctx.AddApplied(iQF.Name, applied)
+	}
 	return nil
 }

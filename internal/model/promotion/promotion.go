@@ -5,11 +5,8 @@ import (
 )
 
 type (
-	// Promotion
-	// Defines the promotion interface that allows to apply changes to a cart
-	// by adding purchases or discounts through delegate handlers
 	Promotion interface {
-		Apply(getPurchasedHandler GetPurchasedItemHandler, addPromoHandler AddPromoItemToCartHandler, AddDiscountHandler AddDiscountToCartHandler) (err error)
+		Apply(ctx PromotionContext) error
 	}
 
 	PurchasedItem struct {
@@ -20,15 +17,21 @@ type (
 		Discount int64
 	}
 
-	// GetPurchasedItemHandler
-	// Delegates the ability find the purchased item in the cart
-	GetPurchasedItemHandler func(sku item.Sku) (PurchasedItem, bool)
+	GetPurchasedItemHandler     func(sku item.Sku) (PurchasedItem, bool)
+	AddPromoItemToCartHandler   func(i item.Sku, qty int) (int64, error)
+	AddDiscountToCartHandler    func(discountItemSku item.Sku, discount int64) (int64, error)
+	GetAllPurchasedItemsHandler func() []PurchasedItem
+	GetCartTotalHandler         func() int64
+	// AddAppliedPromotionHandler records a named promotion and its total discount.
+	// Callers must check for nil — it is optional in test contexts.
+	AddAppliedPromotionHandler func(name string, discount int64)
 
-	// AddPromoItemToCartHandler
-	// Delegates the ability to add items to a cart
-	AddPromoItemToCartHandler func(i item.Sku, qty int) error
-
-	// AddDiscountToCartHandler
-	// Delegates the ability to add discounts to a cart
-	AddDiscountToCartHandler func(discountItemSku item.Sku, discount int64) error
+	PromotionContext struct {
+		GetPurchased    GetPurchasedItemHandler
+		AddPromo        AddPromoItemToCartHandler
+		AddDiscount     AddDiscountToCartHandler
+		GetAllPurchased GetAllPurchasedItemsHandler
+		GetCartTotal    GetCartTotalHandler
+		AddApplied      AddAppliedPromotionHandler
+	}
 )

@@ -9,6 +9,7 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,17 +29,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Verify go.mod is tidy
+        run: go mod tidy && git diff --exit-code go.mod go.sum
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
       - name: Ensure ci.sh is executable
         run: chmod +x ci.sh
 
-      - name: Run CI script (vet, lint if available, tests, build)
+      - name: Run CI script (vet, tests, coverage, build)
         run: ./ci.sh
 
       - name: Run tests with race detector
         run: go test -race ./...
-
-      - name: Run tests with coverage
-        run: go test -coverprofile=coverage.out ./...
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4

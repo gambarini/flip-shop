@@ -22,13 +22,21 @@ type (
 	// For simplicity only 2 states are supported.
 	Status string
 
+	// AppliedPromotion records a named promotion that was applied at submission.
+	// Discount is expressed in integer cents (int64).
+	AppliedPromotion struct {
+		Name     string
+		Discount int64
+	}
+
 	// Cart represents a shopping cart with purchases and totals.
 	// Total is expressed in integer cents (int64).
 	Cart struct {
-		CartID     string
-		Purchases  map[item.Sku]Purchase
-		CartStatus Status
-		Total      int64
+		CartID            string
+		Purchases         map[item.Sku]Purchase
+		CartStatus        Status
+		Total             int64
+		AppliedPromotions []AppliedPromotion
 	}
 
 	// Purchase captures an item purchase in the cart, including discount applied.
@@ -100,20 +108,28 @@ func (c *Cart) PurchaseItem(i item.Item, qty int) (err error) {
 	return nil
 }
 
-// DiscountPurchase adds a discount to an existing purchase by SKU.
-func (c *Cart) DiscountPurchase(sku item.Sku, discount int64) (err error) {
+// DiscountPurchase adds a discount to an existing purchase by SKU,
+// capped at the remaining uncharged amount. Returns the actually-applied discount.
+func (c *Cart) DiscountPurchase(sku item.Sku, discount int64) (int64, error) {
 
 	p, ok := c.Purchases[sku]
 
 	if !ok {
-		return ErrItemNotInCart
+		return 0, ErrItemNotInCart
 	}
 
-	p.Discount += discount
+	lineTotal := utils.SaturatingMulInt64Int(p.Price, p.Qty)
+	remaining := utils.SaturatingSubInt64(lineTotal, p.Discount)
 
+	applied := discount
+	if applied > remaining {
+		applied = remaining
+	}
+
+	p.Discount += applied
 	c.Purchases[sku] = p
 
-	return nil
+	return applied, nil
 }
 
 // SubmitCart finalizes the cart total and moves it to Submitted status.

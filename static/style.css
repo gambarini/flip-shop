@@ -352,6 +352,19 @@ header h1 {
     font-weight: 600;
 }
 
+.summary-row.savings {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--success-color);
+    border-top: 1px solid var(--success-color);
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.savings-amount {
+    font-weight: 700;
+}
+
 .promotions-info {
     margin-top: 2rem;
     padding: 1rem;

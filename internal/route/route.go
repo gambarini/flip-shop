@@ -54,6 +54,7 @@ func SetRoutes(srv *utils.AppServer, itemRepo repo.IItemRepository, cartRepo rep
 
 	// Serve index.html at root path
 	if err := srv.AddRoute("/", "GET", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
 		http.ServeFile(w, r, "./static/index.html")
 	}); err != nil {
 		return err

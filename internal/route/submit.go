@@ -18,27 +18,34 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 
 		cartID := srv.Vars(request)["cartID"]
 
-		submitCart, err := cartRepo.FindCartByID(cartID)
+		var submitCart cart.Cart
 
-		if err != nil {
-			if errors.Is(err, repo.ErrCartNotFound) {
-				srv.ResponseErrorNotfound(response, err)
-				return
+		err := cartRepo.WithTx(func(tx utils.Tx) error {
+
+			var innerErr error
+			submitCart, innerErr = cartRepo.FindCartByIDInTx(tx, cartID)
+			if innerErr != nil {
+				return innerErr
 			}
-			srv.ResponseErrorServerErr(response, fmt.Errorf("error finding cart: %w", err))
-			return
-		}
 
-		err = cartRepo.WithTx(func(tx utils.Tx) error {
+			var appliedPromos []cart.AppliedPromotion
+			ctx := promotion.PromotionContext{
+				GetPurchased:    GetPurchasedItemForPromotion(submitCart),
+				AddPromo:        AddPurchaseToCartForPromotion(tx, itemRepo, submitCart),
+				AddDiscount:     AddDiscountToPurchaseForPromotion(submitCart),
+				GetAllPurchased: GetAllPurchasedItemsForPromotion(submitCart),
+				GetCartTotal:    GetCartTotalForPromotion(submitCart),
+				AddApplied: func(name string, discount int64) {
+					appliedPromos = append(appliedPromos, cart.AppliedPromotion{Name: name, Discount: discount})
+				},
+			}
 
 			for _, p := range promotions {
-				if err := p.Apply(
-					GetPurchasedItemForPromotion(submitCart),
-					AddPurchaseToCartForPromotion(tx, itemRepo, submitCart),
-					AddDiscountToPurchaseForPromotion(submitCart)); err != nil {
+				if err := p.Apply(ctx); err != nil {
 					return err
 				}
 			}
+			submitCart.AppliedPromotions = appliedPromos
 
 			for _, pu := range submitCart.Purchases {
 
@@ -58,7 +65,7 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 
 			}
 
-			err = submitCart.SubmitCart()
+			err := submitCart.SubmitCart()
 
 			if err != nil {
 				return err
@@ -72,6 +79,9 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 		})
 
 		switch {
+		case errors.Is(err, repo.ErrCartNotFound):
+			srv.ResponseErrorNotfound(response, err)
+			return
 		case errors.Is(err, repo.ErrItemNotFound):
 			srv.ResponseErrorEntityUnproc(response, err)
 			return
@@ -100,42 +110,38 @@ func submit(srv *utils.AppServer, cartRepo repo.ICartRepository, itemRepo repo.I
 	}
 }
 
-func AddDiscountToPurchaseForPromotion(cart cart.Cart) func(sku item.Sku, discount int64) error {
-	return func(sku item.Sku, discount int64) error {
-
-		if err := cart.DiscountPurchase(sku, discount); err != nil {
-			return err
-		}
-
-		return nil
+func AddDiscountToPurchaseForPromotion(cart cart.Cart) func(sku item.Sku, discount int64) (int64, error) {
+	return func(sku item.Sku, discount int64) (int64, error) {
+		return cart.DiscountPurchase(sku, discount)
 	}
 }
 
 // AddPurchaseToCartForPromotion reserves the promotional items before adding them to the cart to ensure
-// inventory invariants are maintained. If reservation fails (insufficient availability), the promotion
+// inventory invariants are maintained. Returns the total price charged for the added items so the caller
+// can apply an exact matching discount. If reservation fails (insufficient availability), the promotion
 // application aborts and no cart state is mutated, as the call happens within the transaction boundary.
-func AddPurchaseToCartForPromotion(tx utils.Tx, itemRepo repo.IItemRepository, cart cart.Cart) func(sku item.Sku, qty int) error {
-	return func(sku item.Sku, qty int) error {
+func AddPurchaseToCartForPromotion(tx utils.Tx, itemRepo repo.IItemRepository, cart cart.Cart) func(sku item.Sku, qty int) (int64, error) {
+	return func(sku item.Sku, qty int) (int64, error) {
 
 		i, err := itemRepo.FindItemBySku(tx, sku)
 
 		if err != nil {
-			return err
+			return 0, err
 		}
 
 		if err = i.ReserveItem(qty); err != nil {
-			return err
+			return 0, err
 		}
 
 		if err := cart.PurchaseItem(i, qty); err != nil {
-			return err
+			return 0, err
 		}
 
 		if err = itemRepo.Store(tx, i); err != nil {
-			return err
+			return 0, err
 		}
 
-		return nil
+		return utils.SaturatingMulInt64Int(i.Price, qty), nil
 	}
 }
 
@@ -148,11 +154,39 @@ func GetPurchasedItemForPromotion(cart cart.Cart) func(sku item.Sku) (promotion.
 		}
 
 		return promotion.PurchasedItem{
+			Sku:      pu.Sku,
 			Name:     pu.Name,
 			Price:    pu.Price,
 			Qty:      pu.Qty,
 			Discount: pu.Discount,
 		}, true
 
+	}
+}
+
+func GetAllPurchasedItemsForPromotion(c cart.Cart) func() []promotion.PurchasedItem {
+	return func() []promotion.PurchasedItem {
+		items := make([]promotion.PurchasedItem, 0, len(c.Purchases))
+		for _, pu := range c.Purchases {
+			items = append(items, promotion.PurchasedItem{
+				Sku:      pu.Sku,
+				Name:     pu.Name,
+				Price:    pu.Price,
+				Qty:      pu.Qty,
+				Discount: pu.Discount,
+			})
+		}
+		return items
+	}
+}
+
+// GetCartTotalForPromotion returns the pre-discount line total across all purchases.
+func GetCartTotalForPromotion(c cart.Cart) func() int64 {
+	return func() int64 {
+		var total int64
+		for _, pu := range c.Purchases {
+			total = utils.SaturatingAddInt64(total, utils.SaturatingMulInt64Int(pu.Price, pu.Qty))
+		}
+		return total
 	}
 }

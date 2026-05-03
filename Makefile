@@ -24,10 +24,10 @@ help:
 	@echo "  clean        - Remove built artifacts"
 
 build:
-	$(GO) build -o $(BIN) .
+	$(GO) build -o $(BIN) ./cmd/flip-shop
 
 run: build
-	./$(BIN)
+	FLIPSHOP_CONFIG_FILE=./config.yaml ./$(BIN)
 
 test:
 	$(GO) test ./...

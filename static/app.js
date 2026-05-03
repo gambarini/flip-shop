@@ -249,6 +249,7 @@ function updateCartDisplay() {
         cartItemsEl.innerHTML = '<p class="empty-cart">Your cart is empty. Add items to get started!</p>';
         document.getElementById('cartSummary').style.display = 'none';
         document.getElementById('submitBtn').disabled = true;
+        renderAppliedPromotions();
         return;
     }
 
@@ -308,6 +309,14 @@ function updateCartDisplay() {
     const total = isSubmitted ? cart.Total : subtotal;
     document.getElementById('total').textContent = formatPrice(total);
 
+    const savingsRow = document.getElementById('savingsRow');
+    if (isSubmitted && totalDiscount > 0) {
+        savingsRow.style.display = 'flex';
+        document.getElementById('totalSavings').textContent = formatPrice(totalDiscount);
+    } else {
+        savingsRow.style.display = 'none';
+    }
+
     // Update submit button
     const submitBtn = document.getElementById('submitBtn');
     if (isSubmitted) {
@@ -319,6 +328,33 @@ function updateCartDisplay() {
         submitBtn.disabled = false;
         submitBtn.className = 'btn btn-primary btn-submit';
     }
+
+    renderAppliedPromotions();
+}
+
+// Render applied promotions section
+function renderAppliedPromotions() {
+    const heading = document.getElementById('promotionsHeading');
+    const list = document.getElementById('promotionsList');
+    if (!heading || !list) return;
+
+    if (!cart || cart.CartStatus !== 'Submitted') {
+        heading.textContent = 'Active Promotions';
+        list.innerHTML = '<li class="promotions-placeholder">Submit your cart to see which promotions were applied.</li>';
+        return;
+    }
+
+    heading.textContent = 'Applied Promotions';
+
+    const applied = cart.AppliedPromotions || [];
+    if (applied.length === 0) {
+        list.innerHTML = '<li class="promotions-placeholder">No promotions applied to this order.</li>';
+        return;
+    }
+
+    list.innerHTML = applied
+        .map(p => `<li>${p.Name} &mdash; <span class="discount-amount">-${formatPrice(p.Discount)} discount</span></li>`)
+        .join('');
 }
 
 // Event listeners

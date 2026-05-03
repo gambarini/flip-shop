@@ -47,7 +47,7 @@ func setupTestEnv(t *testing.T) testEnv {
 	cartRepo := repo.NewCartRepository(kv)
 
 	promos := []promotion.Promotion{
-		promotion.FreeItemPromotion{PurchasedItemSku: ItemMacBookProSku, FreeItemSku: RaspberryPiSku, FreeItemPrice: 3000},
+		promotion.FreeItemPromotion{PurchasedItemSku: ItemMacBookProSku, FreeItemSku: RaspberryPiSku},
 		promotion.ItemQtyPriceFreePromotion{PurchasedItemSku: ItemGoogleHomeSku, PurchasedQty: 3},
 		promotion.ItemQtyPriceDiscountPercentagePromotion{PurchasedItemSku: ItemAlexaSpeakerSku, PurchasedQty: 3, PercentageDiscount: 0.1},
 	}
@@ -178,14 +178,14 @@ func TestSubmit_WithPromotions(t *testing.T) {
 // failingPromotion always returns an error on Apply
 type failingPromotion struct{}
 
-func (f failingPromotion) Apply(_ promotion.GetPurchasedItemHandler, _ promotion.AddPromoItemToCartHandler, _ promotion.AddDiscountToCartHandler) error {
+func (f failingPromotion) Apply(_ promotion.PromotionContext) error {
 	return fmt.Errorf("promo failed")
 }
 
 // countingPromotion increments counter when Apply is called
 type countingPromotion struct{ calls *int }
 
-func (c countingPromotion) Apply(_ promotion.GetPurchasedItemHandler, _ promotion.AddPromoItemToCartHandler, _ promotion.AddDiscountToCartHandler) error {
+func (c countingPromotion) Apply(_ promotion.PromotionContext) error {
 	*(c.calls)++
 	return nil
 }

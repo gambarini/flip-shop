@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flip-Shop - Shopping Cart</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
     <div class="container">
@@ -49,6 +49,10 @@
                         <span>Total:</span>
                         <span id="total">$0.00</span>
                     </div>
+                    <div class="summary-row savings" id="savingsRow" style="display: none;">
+                        <span>You saved:</span>
+                        <span id="totalSavings" class="savings-amount">$0.00</span>
+                    </div>
                 </div>
 
                 <button class="btn btn-primary btn-submit" id="submitBtn" disabled>
@@ -56,17 +60,15 @@
                 </button>
 
                 <div class="promotions-info">
-                    <h3>Active Promotions</h3>
-                    <ul>
-                        <li>🎁 Buy MacBook Pro, get Raspberry Pi B free!</li>
-                        <li>🏠 Buy 3 Google Homes, get 1 free!</li>
-                        <li>🔊 Buy 3+ Alexa Speakers, get 10% off!</li>
+                    <h3 id="promotionsHeading">Active Promotions</h3>
+                    <ul id="promotionsList">
+                        <li class="promotions-placeholder">Submit your cart to see which promotions were applied.</li>
                     </ul>
                 </div>
             </section>
         </div>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=4"></script>
 </body>
 </html>

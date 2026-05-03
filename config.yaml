@@ -1,0 +1,122 @@
+# flip-shop configuration
+# Set FLIPSHOP_CONFIG_FILE=./config.yaml to load this file at startup.
+# If the file is absent, the app falls back to hardcoded defaults.
+# Prices are in cents (e.g., 4999 = $49.99).
+# Promotions reference item SKUs defined in the items section.
+
+items:
+  - sku: "120P90"
+    name: "Google Home"
+    price: 4999
+    qty: 10
+  - sku: "43N23P"
+    name: "MacBook Pro"
+    price: 539999
+    qty: 5
+  - sku: "A304SD"
+    name: "Alexa Speaker"
+    price: 10950
+    qty: 10
+  - sku: "234234"
+    name: "Raspberry Pi B"
+    price: 3000
+    qty: 2
+  - sku: "AP2PRO"
+    name: "Apple AirPods Pro"
+    price: 24999
+    qty: 8
+  - sku: "GNH001"
+    name: "Google Nest Hub"
+    price: 9999
+    qty: 6
+  - sku: "AED4GN"
+    name: "Amazon Echo Dot"
+    price: 4999
+    qty: 15
+  - sku: "IPM6TH"
+    name: "iPad Mini"
+    price: 49999
+    qty: 4
+  - sku: "RP5001"
+    name: "Raspberry Pi 5"
+    price: 8000
+    qty: 10
+
+promotions:
+  - type: "free_item"
+    name: "Buy a MacBook Pro, get a Raspberry Pi B free"
+    purchased_item_sku: "43N23P"
+    free_item_sku: "234234"
+
+  - type: "qty_price_free"
+    name: "Buy 3 Google Homes, get 1 free"
+    purchased_item_sku: "120P90"
+    purchased_qty: 3
+
+  - type: "qty_discount_percentage"
+    name: "Buy 3 Alexa Speakers, get 10% off"
+    purchased_item_sku: "A304SD"
+    purchased_qty: 3
+    percentage_discount: 0.10
+
+  - type: "free_item"
+    name: "Buy an iPad Mini, get AirPods Pro free"
+    purchased_item_sku: "IPM6TH"
+    free_item_sku: "AP2PRO"
+
+  - type: "free_item"
+    name: "Buy a MacBook Pro, get AirPods Pro free"
+    purchased_item_sku: "43N23P"
+    free_item_sku: "AP2PRO"
+
+  - type: "qty_price_free"
+    name: "Buy 2 Raspberry Pi 5s, get 1 free"
+    purchased_item_sku: "RP5001"
+    purchased_qty: 2
+
+  - type: "qty_price_free"
+    name: "Buy 3 Amazon Echo Dots, get 1 free"
+    purchased_item_sku: "AED4GN"
+    purchased_qty: 3
+
+  - type: "qty_discount_percentage"
+    name: "Buy 2 Google Nest Hubs, get 20% off"
+    purchased_item_sku: "GNH001"
+    purchased_qty: 2
+    percentage_discount: 0.20
+
+  - type: "qty_discount_fixed"
+    name: "Buy 2 Raspberry Pi 5s, get $10 off"
+    purchased_item_sku: "RP5001"
+    purchased_qty: 2
+    fixed_discount: 1000
+
+  - type: "qty_half_price"
+    name: "Buy 2 AirPods Pro, second one at half price"
+    purchased_item_sku: "AP2PRO"
+    purchased_qty: 2
+
+  - type: "qty_tiered_discount"
+    name: "iPad Mini volume discount (2+ get 10% off, 4+ get 20% off)"
+    purchased_item_sku: "IPM6TH"
+    tiers:
+      - min_qty: 2
+        percentage_discount: 0.10
+      - min_qty: 4
+        percentage_discount: 0.20
+
+  - type: "bundle_discount"
+    name: "Smart Home Bundle: Google Nest Hub + Echo Dot — 15% off both"
+    item_skus:
+      - "GNH001"
+      - "AED4GN"
+    percentage_discount: 0.15
+
+  - type: "cart_spend_threshold"
+    name: "Spend $300 or more, get 5% off everything"
+    threshold_amount: 30000
+    percentage_discount: 0.05
+
+  - type: "cheapest_item_free"
+    name: "Buy any 3 items, the cheapest one is free"
+    min_item_count: 3

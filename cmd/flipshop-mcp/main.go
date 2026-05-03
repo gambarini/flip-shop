@@ -2,25 +2,28 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
 	"github.com/gambarini/flip-shop/utils/mcp"
 )
 
-func main() {
+func run() error {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
-	logger.Println("flipshop-mcp: starting (scaffold)")
 
-	// Load configuration from environment with defaults and validation
 	cfg, err := mcp.LoadFromEnv()
 	if err != nil {
-		logger.Fatalf("flipshop-mcp: configuration error: %v", err)
+		return fmt.Errorf("configuration: %w", err)
 	}
 
-	// Create a stub server and start it (no-op for now)
 	s := mcp.NewServer(logger, cfg)
-	_ = s.Start(context.Background())
+	return s.Start(context.Background())
+}
 
-	logger.Println("flipshop-mcp: exiting (scaffold)")
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "fatal: %v\n", err)
+		os.Exit(1)
+	}
 }

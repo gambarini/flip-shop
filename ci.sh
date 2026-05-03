@@ -5,21 +5,7 @@ path_local=$(pwd)
 echo "Running go vet..."
 go vet ./...
 
-# Prefer golangci-lint if installed; fall back to staticcheck if available
-if command -v golangci-lint >/dev/null 2>&1; then
-  echo "Running golangci-lint..."
-  golangci-lint run ./...
-elif command -v staticcheck >/dev/null 2>&1; then
-  echo "Running staticcheck..."
-  staticcheck ./...
-else
-  echo "Skipping golangci-lint/staticcheck (not installed)."
-fi
-
 echo "Running Tests..."
-go test ./...
-
-echo "Running tests with coverage..."
 go test -coverprofile=coverage.out ./...
 
 # Enforce a minimal coverage threshold (e.g., 70%)
@@ -33,10 +19,10 @@ if [ "$ok" != "yes" ]; then
   exit 1
 fi
 
-echo "Building binary on ${path_local}..."
-go build
+echo "Building flip-shop binary..."
+go build -o flip-shop ./cmd/flip-shop
 
 echo "Building flipshop-mcp binary..."
 go build -o flipshop-mcp ./cmd/flipshop-mcp
 
-echo "binary on ${path_local}/flip-shop and ${path_local}/flipshop-mcp"
+echo "Binaries: ${path_local}/flip-shop and ${path_local}/flipshop-mcp"

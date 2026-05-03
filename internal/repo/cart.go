@@ -18,6 +18,8 @@ type (
 		utils.KVRepository
 		// FindCartByID loads a cart by its identifier.
 		FindCartByID(id string) (c cart.Cart, err error)
+		// FindCartByIDInTx loads a cart by its identifier within an active transaction.
+		FindCartByIDInTx(tx utils.Tx, id string) (c cart.Cart, err error)
 		// Store persists the given cart within the provided transaction.
 		Store(tx utils.Tx, c cart.Cart) (err error)
 	}
@@ -44,6 +46,21 @@ func NewCartRepository(kvDb utils.KVDatabase) *CartRepository {
 func (repo CartRepository) FindCartByID(id string) (c cart.Cart, err error) {
 
 	v, err := repo.KVDatabase.Read(CartStoreName, id)
+
+	switch {
+	case errors.Is(err, utils.ErrValueNotFound):
+		return c, ErrCartNotFound
+	case err != nil:
+		return c, err
+	default:
+		return v.(cart.Cart), nil
+	}
+}
+
+// FindCartByIDInTx reads a cart from within an active transaction snapshot.
+func (repo CartRepository) FindCartByIDInTx(tx utils.Tx, id string) (c cart.Cart, err error) {
+
+	v, err := tx.Read(CartStoreName, id)
 
 	switch {
 	case errors.Is(err, utils.ErrValueNotFound):
