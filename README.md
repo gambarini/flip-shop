@@ -1,206 +1,180 @@
 # Flip-shop
 
-Simple online shopping application. Support Items, Promotions and Cart management.
+[![CI](https://github.com/gambarini/flip-shop/actions/workflows/ci.yml/badge.svg)](https://github.com/gambarini/flip-shop/actions/workflows/ci.yml)
 
+A shopping cart REST API with a configurable promotion pipeline and an MCP server that exposes cart operations as AI tools.
 
 ## Quick start
-- Build: go build && ./flip-shop
-- Run without building: go run ./...
-- Default server port: 8001 (configurable via env, see Configuration)
+
+```bash
+make run          # build and start server at http://localhost:8001
+make test         # run all tests
+make race         # run tests with race detector
+make ci           # full CI check: vet + tests + coverage + build
+```
+
+Or without Make:
+
+```bash
+go build -o flip-shop ./cmd/flip-shop && FLIPSHOP_CONFIG_FILE=./config.yaml ./flip-shop
+```
 
 ## Configuration
-- FLIPSHOP_PORT or PORT: server port (default 8001)
-- FLIPSHOP_VERSION: version string exposed by /health (default "dev")
-- FLIPSHOP_INVENTORY_JSON: optional JSON to seed items at startup. Example:
-  - [{"sku":"120P90","name":"Google Home","price":4999,"qty":10}]
 
-## Health endpoint
-- GET /health → 200 OK
-  - Response: {"status":"ok","uptime_seconds":123,"version":"dev"}
+| Variable | Default | Description |
+|---|---|---|
+| `FLIPSHOP_PORT` / `PORT` | `8001` | Server port |
+| `FLIPSHOP_VERSION` | `dev` | Version string in `/health` |
+| `FLIPSHOP_CONFIG_FILE` | *(unset)* | Path to YAML config file (items + promotions) |
+| `FLIPSHOP_INVENTORY_JSON` | *(default items)* | JSON array to seed inventory; ignored when `FLIPSHOP_CONFIG_FILE` provides items |
 
-## Domain model
+A `config.yaml` is included with a full inventory and promotion set. Start with:
 
-### Cart
-
-Describes the Cart by managing Items Purchased and the total price of items.
-
-#### Cart Status
-
-- A new Carts has status Available.
-- Carts with status Available can receive Item purchases, or be Submitted.
-- Submitted Cart cannot receive Item purchases.
-- Submitted a Cart will apply promotions to purchased items and remove purchased Item from being available.
-
-### Item
-
-Describes the items available for purchase.
-
-#### Item availability and reservation
-
-- Only a given quantity of an Item is available for shopping.
-
-- Adding Items to a Cart reserves the Item quantity. Reserved Item quantities are not available for shopping
-until removed from a Cart.
-
-### Promotion
-
-Describes the Promotions affecting a Cart, depending on the Items present in the Cart.
-
-#### Available promotions (examples)
-- Buy MacBook Pro (43N23P), get a Raspberry Pi B (234234) for free per MacBook purchased.
-  - Implemented via FreeItemPromotion; cart will include Raspberry Pi items with a discount equal to their price.
-- Buy 3 Google Home (120P90), get 1 free (every third unit is free).
-  - Implemented via ItemQtyPriceFreePromotion; discount equals one Google Home price per 3 units.
-- Buy more than 3 Alexa Speakers (A304SD), get 10% off on those speakers.
-  - Implemented via ItemQtyPriceDiscountPercentagePromotion; applies when qty > 3 (not >=).
-
-#### Cart update from applied promotions
-
-Promotions can change a Cart by:
-
-- Adding an Item quantity to a Cart (e.g., free Raspberry Pi).
-- Adding a discount to an Item purchased.
-
-
+```bash
+FLIPSHOP_CONFIG_FILE=./config.yaml ./flip-shop
+```
 
 ## REST API
 
-OpenAPI specification: docs/openapi.yaml
+OpenAPI specification: `docs/openapi.yaml`
 
-All responses are JSON with Content-Type: application/json.
+All responses are JSON (`Content-Type: application/json`).
 
-### Read endpoints
-- GET /items → list all items
-- GET /cart/{cartID} → fetch a cart by ID
+### GET /health
 
-### Error responses
-- 404 Not Found: resource does not exist (e.g., cart not found).
-  - {"error":"<message>"}
-- 422 Unprocessable Entity: validation or domain error (e.g., invalid qty, item unavailable, item not found).
-  - {"error":"<message>"}
-- 500 Internal Server Error: unexpected server error.
-  - {"error":"<message>"}
+```json
+{"status":"ok","uptime_seconds":12,"version":"dev"}
+```
+
+### GET /items
+
+Returns all available items.
 
 ### POST /cart
 
-Create an available cart.
+Create a new cart.
 
-Example request (curl):
-- curl -s -X POST http://localhost:8001/cart
+```bash
+curl -s -X POST http://localhost:8001/cart
+```
 
-Response Payload
 ```json
 {
-    "CartID": "d6870d29-eb07-4a31-9469-abe898183a1c",
-    "Purchases": {},
-    "CartStatus": "Available",
-    "Total": 0
+  "CartID": "d6870d29-eb07-4a31-9469-abe898183a1c",
+  "Purchases": {},
+  "CartStatus": "Available",
+  "Total": 0
 }
 ```
 
-### [PUT | DELETE] /cart/{cartID}/purchase
+### PUT /cart/{cartID}/purchase
 
-- PUT: Purchase an Item and add it to the Cart
-- DELETE: Remove a Purchased Item from the Cart
+Add an item to the cart.
 
-Example request (PUT):
-- curl -s -X PUT http://localhost:8001/cart/{cartID}/purchase -H 'Content-Type: application/json' -d '{"sku":"120P90","qty":3}'
-
-Example request (DELETE):
-- curl -s -X DELETE http://localhost:8001/cart/{cartID}/purchase -H 'Content-Type: application/json' -d '{"sku":"120P90","qty":1}'
-
-Request Payload
-```json
-{
-    "sku":"120P90",
-    "qty": 3
-}
+```bash
+curl -s -X PUT http://localhost:8001/cart/{cartID}/purchase \
+  -H 'Content-Type: application/json' \
+  -d '{"sku":"120P90","qty":3}'
 ```
 
-Response Payload
-```json
-{
-    "CartID": "d6870d29-eb07-4a31-9469-abe898183a1c",
-    "Purchases": {
-        "120P90": {
-            "Sku": "120P90",
-            "Name": "Google Home",
-            "Price": 4999,
-            "Qty": 3,
-            "Discount": 0
-        }
-    },
-    "CartStatus": "Available",
-    "Total": 0
-}
+### DELETE /cart/{cartID}/purchase
+
+Remove a purchased item from the cart.
+
+```bash
+curl -s -X DELETE http://localhost:8001/cart/{cartID}/purchase \
+  -H 'Content-Type: application/json' \
+  -d '{"sku":"120P90","qty":1}'
 ```
 
+### GET /cart/{cartID}
 
+Fetch a cart by ID.
 
-### PUT cart/{cartID}/status/submitted
+### PUT /cart/{cartID}/status/submitted
 
-Submit the Cart by applying promotions and calculating the total.
+Submit the cart: applies all promotions and calculates the final total. Submitted carts are immutable.
 
-Example request (curl):
-- curl -s -X PUT http://localhost:8001/cart/{cartID}/status/submitted
-
-Response Payload
-```json
-{
-    "CartID": "d6870d29-eb07-4a31-9469-abe898183a1c",
-    "Purchases": {
-        "120P90": {
-            "Sku": "120P90",
-            "Name": "Google Home",
-            "Price": 4999,
-            "Qty": 3,
-            "Discount": 4999
-        },
-        "234234": {
-            "Sku": "234234",
-            "Name": "Raspberry Pi B",
-            "Price": 3000,
-            "Qty": 2,
-            "Discount": 6000
-        },
-        "43N23P": {
-            "Sku": "43N23P",
-            "Name": "MacBook Pro",
-            "Price": 539999,
-            "Qty": 2,
-            "Discount": 0
-        },
-        "A304SD": {
-            "Sku": "A304SD",
-            "Name": "Alexa Speaker",
-            "Price": 10950,
-            "Qty": 4,
-            "Discount": 4380
-        }
-    },
-    "CartStatus": "Submitted",
-    "Total": 1129416
-}
+```bash
+curl -s -X PUT http://localhost:8001/cart/{cartID}/status/submitted
 ```
 
-## Considerations
+### Error responses
 
-### Project organization
+| Status | Meaning |
+|---|---|
+| `404` | Resource not found |
+| `422` | Validation or domain error (invalid qty, item unavailable, etc.) |
+| `500` | Unexpected server error |
 
-- ```/utils```: external utilities
-- ```/internal/model```: domain models
-- ```/internal/repo```: repositories
-- ```/internal/route```: HTTP handlers, and domain service logic (** handlers and service logic could be separated ideally **)
+All errors return `{"error":"<message>"}`.
 
-### Memory key/value database
+## Promotions
 
-- The application uses a basic memory Key/Value database, in ```/utils/memdb```
-- It implements an ACID isolation level of "Serializable" by mutex locking the map stored in memory
-- It ** does not implement transaction rollback ** for the sake of demo simplicity (no time for this now)
+Promotions are applied sequentially when a cart is submitted. They are configured via `config.yaml` or wired in code (`cmd/flip-shop/main.go`).
 
-### Unit tests
+| Type | Config key | Description |
+|---|---|---|
+| Free item | `free_item` | Buy item A, get item B for free (once per unit of A purchased) |
+| Qty price free | `qty_price_free` | Buy N of item A, get 1 free (every Nth unit is free) |
+| Qty % discount | `qty_discount_percentage` | Buy ≥ N of item A, get X% off all units |
+| Qty fixed discount | `qty_discount_fixed` | Buy ≥ N of item A, get a fixed amount off |
+| Half price | `qty_half_price` | Buy N of item A, every Nth unit is half price |
+| Tiered % discount | `qty_tiered_discount` | Quantity tiers, each with its own % discount |
+| Bundle discount | `bundle_discount` | Buy all items in a set, get X% off each of them |
+| Spend threshold | `cart_spend_threshold` | Cart total exceeds threshold → X% off entire cart |
+| Cheapest item free | `cheapest_item_free` | Buy ≥ N distinct items, cheapest one is free |
 
-- Domain models, repositories, and HTTP handlers have tests.
-- Run all tests: go test ./...
-- With race: go test -race ./...
-- Coverage HTML: go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out
+## MCP server
+
+`flipshop-mcp` is a second binary that exposes cart operations as MCP tools, proxying to the HTTP API.
+
+```bash
+go build -o flipshop-mcp ./cmd/flipshop-mcp
+FLIPSHOP_MCP_BASE_URL=http://localhost:8001 ./flipshop-mcp
+```
+
+Available tools: `cart.create`, `cart.purchase.add`, `cart.purchase.remove`, `cart.submit`.
+
+See `examples/mcp/claude_desktop.json` for Claude Desktop integration.
+
+## Project layout
+
+```
+cmd/
+  flip-shop/        # HTTP server binary (main + YAML config loader)
+  flipshop-mcp/     # MCP server binary
+internal/
+  model/
+    cart/           # Cart domain model and state machine
+    item/           # Item domain model
+    promotion/      # All promotion types (9 implementations)
+  repo/             # KV-backed repositories (cart, item)
+  route/            # HTTP handlers
+utils/
+  memdb/            # In-memory KV database (serializable isolation via mutex)
+  mcp/              # MCP server implementation
+  server.go         # HTTP server lifecycle + response helpers
+  db.go             # KVDatabase interface and transaction types
+static/             # Frontend (served at / and /static/)
+config.yaml         # Example inventory and promotion configuration
+```
+
+## Architecture notes
+
+**In-memory database** — `utils/memdb.MemoryKVDatabase` provides serializable isolation via a mutex. There is no rollback; handlers must write only after all validation passes.
+
+**Promotion pipeline** — Promotions implement `promotion.Promotion` and run sequentially at submit time. Order matters; earlier promotions can affect what later ones see.
+
+**Transaction pattern** — All mutations go through `repo.WithTx(func(tx utils.Tx) error { ... })`.
+
+## Testing
+
+```bash
+make test         # go test ./...
+make race         # go test -race ./...
+make cover        # go test -cover ./...
+make cover-html   # generate coverage.out and open HTML report
+```
+
+Tests use table-driven style for business rules, `httptest` for route handlers, and a fresh in-memory DB per repository test case.
