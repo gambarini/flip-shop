@@ -45,7 +45,7 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	if s.logger != nil {
 		s.logger.Println("flipshop-mcp: server start (tool registry active)")
-		s.logger.Println(fmt.Sprintf("flipshop-mcp: config BaseURL=%s Timeout=%s", s.config.BaseURL, s.config.Timeout))
+		s.logger.Printf("flipshop-mcp: config BaseURL=%s Timeout=%s", s.config.BaseURL, s.config.Timeout)
 		for name := range s.tools {
 			s.logger.Println("flipshop-mcp: tool registered:", name)
 		}
@@ -235,7 +235,7 @@ func (s *Server) doJSON(ctx context.Context, method, relativePath string, payloa
 	if err != nil {
 		return nil, 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, 0, err

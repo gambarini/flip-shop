@@ -68,7 +68,7 @@ func (repo ItemRepository) Store(tx utils.Tx, i item.Item) (err error) {
 
 // ListItems returns all items from the underlying store.
 func (repo ItemRepository) ListItems() ([]item.Item, error) {
-	vals, err := repo.KVDatabase.List(ItemStoreName)
+	vals, err := repo.List(ItemStoreName)
 	if err != nil {
 		return nil, err
 	}

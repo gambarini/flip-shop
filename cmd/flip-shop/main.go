@@ -118,7 +118,7 @@ func run() error {
 			fmt.Fprintln(os.Stderr, "warning: YAML config provides items; FLIPSHOP_INVENTORY_JSON is ignored")
 		}
 		for _, yi := range yamlCfg.Items {
-			seedItems = append(seedItems, invItem{Sku: yi.Sku, Name: yi.Name, Price: yi.Price, Qty: yi.Qty})
+			seedItems = append(seedItems, invItem(yi))
 		}
 	} else if invJSON := os.Getenv("FLIPSHOP_INVENTORY_JSON"); invJSON != "" {
 		var parsed []invItem

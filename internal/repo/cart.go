@@ -45,7 +45,7 @@ func NewCartRepository(kvDb utils.KVDatabase) *CartRepository {
 // FindCartByID reads a cart from the underlying KV database.
 func (repo CartRepository) FindCartByID(id string) (c cart.Cart, err error) {
 
-	v, err := repo.KVDatabase.Read(CartStoreName, id)
+	v, err := repo.Read(CartStoreName, id)
 
 	switch {
 	case errors.Is(err, utils.ErrValueNotFound):

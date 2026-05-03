@@ -57,7 +57,7 @@ func loadYAMLConfig(path string) (*YAMLConfig, error) {
 		}
 		return nil, fmt.Errorf("open config file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	dec := yaml.NewDecoder(f)
 	dec.KnownFields(true)
 	var cfg YAMLConfig

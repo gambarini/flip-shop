@@ -127,7 +127,7 @@ func TestErrorMapping_HTTPToMCP(t *testing.T) {
 	for _, c := range cases {
 		srv, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(c.status)
-			w.Write([]byte("oops"))
+			_, _ = w.Write([]byte("oops"))
 		})
 		_, err := srv.invoke(context.Background(), "cart.create", map[string]any{})
 		if err == nil {

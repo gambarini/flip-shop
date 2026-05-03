@@ -153,7 +153,7 @@ func (srv *AppServer) startWithCancel(ctx context.Context) error {
 	errChan := make(chan error, 1)
 	go func() {
 		srv.Logger().Info("listening", Fields{"addr": srv.Addr})
-		fmt.Fprintf(os.Stdout, "\n  App running at http://localhost%s\n\n", srv.Addr)
+		_, _ = fmt.Fprintf(os.Stdout, "\n  App running at http://localhost%s\n\n", srv.Addr)
 		err := srv.ListenAndServe()
 		if err == http.ErrServerClosed {
 			errChan <- nil
@@ -209,21 +209,21 @@ func (srv *AppServer) ResponseErrorEntityUnproc(response http.ResponseWriter, er
 	srv.Logger().Error("error_unprocessable_entity", Fields{"error": err.Error()})
 	response.Header().Set("Content-Type", "application/json")
 	response.WriteHeader(http.StatusUnprocessableEntity)
-	_, _ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
+	_, _ = fmt.Fprintf(response, "{\"error\":\"%s\"}", err)
 }
 
 func (srv *AppServer) ResponseErrorServerErr(response http.ResponseWriter, err error) {
 	srv.Logger().Error("error_internal_server", Fields{"error": err.Error()})
 	response.Header().Set("Content-Type", "application/json")
 	response.WriteHeader(http.StatusInternalServerError)
-	_, _ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
+	_, _ = fmt.Fprintf(response, "{\"error\":\"%s\"}", err)
 }
 
 func (srv *AppServer) ResponseErrorNotfound(response http.ResponseWriter, err error) {
 	srv.Logger().Error("error_not_found", Fields{"error": err.Error()})
 	response.Header().Set("Content-Type", "application/json")
 	response.WriteHeader(http.StatusNotFound)
-	_, _ = response.Write([]byte(fmt.Sprintf("{\"error\":\"%s\"}", err)))
+	_, _ = fmt.Fprintf(response, "{\"error\":\"%s\"}", err)
 }
 
 // RespondJSON writes a JSON response with the given status code. It ensures headers are set before body
