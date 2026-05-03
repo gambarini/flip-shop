@@ -1,6 +1,6 @@
 module github.com/gambarini/flip-shop
 
-go 1.23
+go 1.25
 
 require (
 	github.com/gofrs/uuid v4.0.0+incompatible

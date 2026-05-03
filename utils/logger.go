@@ -60,5 +60,5 @@ func (l *stdLogger) log(level, msg string, fields Fields) {
 		log.Printf("level=%s msg=\"%s\"", level, msg)
 		return
 	}
-	log.Printf(string(b))
+	log.Print(string(b))
 }
