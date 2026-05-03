@@ -28,6 +28,6 @@ _testmain.go
 /.idea
 .DS_Store
 .idea/workspace.xml
-flip-shop
-flipshop-mcp
+/flip-shop
+/flipshop-mcp
 coverage.out
